@@ -9,7 +9,22 @@ export function Home() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    const res = await fetch(
+      `http://localhost:8000/auth/signin?email=${username}&password=${password}`,
+      {
+        method: "POST",
+      },
+    );
+
+    if (!res.ok) {
+      console.log("Request did not go through");
+      return;
+    }
+    const body = await res.json();
+
+    console.log(body);
+
     if (role === "patient") {
       navigate("/patient");
     } else {
