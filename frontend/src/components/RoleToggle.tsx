@@ -1,32 +1,21 @@
-import { useAppStore } from '../stores/appStore';
-import { cn } from '../lib/utils';
-import type { UserRole } from '../types';
+import { useAppStore } from "../stores/appStore";
 
 export function RoleToggle() {
   const { role, setRole } = useAppStore();
 
-  const roles: { value: UserRole; label: string; icon: string }[] = [
-    { value: 'patient', label: 'Patient', icon: '👤' },
-    { value: 'provider', label: 'Provider', icon: '👨‍⚕️' },
-  ];
-
+  const otherRole = () => {
+    return role == "patient" ? "Provider" : "Patient";
+  };
   return (
-    <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-      {roles.map((r) => (
-        <button
-          key={r.value}
-          onClick={() => setRole(r.value)}
-          className={cn(
-            'px-4 py-2 rounded-md text-sm font-medium transition-all',
-            role === r.value
-              ? 'bg-white shadow-sm text-slate-800'
-              : 'text-slate-600 hover:text-slate-800'
-          )}
-        >
-          <span className="mr-2">{r.icon}</span>
-          {r.label}
-        </button>
-      ))}
+    <div className="flex flex-col w-full items-start mb-6 ml-1">
+      <a
+        className="text-sm text-primary cursor-pointer hover:underline pt-2"
+        onClick={() => {
+          setRole(role == "patient" ? "provider" : "patient");
+        }}
+      >
+        I'm a {otherRole()}?
+      </a>
     </div>
   );
 }
