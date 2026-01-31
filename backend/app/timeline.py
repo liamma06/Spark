@@ -1,6 +1,6 @@
 """
 Timeline events (Supabase).
-Uses public.timeline_events: id, patient_id, type, title, details (jsonb), created_at.
+Schema: timeline_events.patient_id references patients(user_id). We use user_id directly.
 """
 
 from fastapi import HTTPException
@@ -8,16 +8,14 @@ from fastapi import HTTPException
 from app.supabase import supabase
 
 
-def get_timeline(patient_id: str | None = None) -> list:
+def get_timeline(patient_user_id: str | None = None) -> list:
     """
-    List timeline events from public.timeline_events.
-    If patient_id is set, filter by that patient; otherwise return all.
-    Returns list of rows (snake_case keys). Empty list on error or no rows.
+    List timeline events. If patient_user_id is set, filter by that patient (patient_id in DB is user_id).
     """
     try:
         q = supabase.table("timeline_events").select("*").order("created_at", desc=True)
-        if patient_id:
-            q = q.eq("patient_id", patient_id)
+        if patient_user_id:
+            q = q.eq("patient_id", patient_user_id)
         res = q.execute()
         return res.data or []
     except HTTPException:
@@ -27,20 +25,18 @@ def get_timeline(patient_id: str | None = None) -> list:
 
 
 def add_event(
-    patient_id: str,
+    patient_user_id: str,
     type: str,
     title: str,
     details: str | dict | None = None,
 ) -> dict:
     """
-    Insert a timeline event into public.timeline_events.
+    Insert a timeline event. patient_id in DB is patient's user_id.
     type must be one of: symptom, appointment, medication, alert, chat.
-    details can be a string (stored as {"text": details}) or a dict for jsonb.
-    Returns the created row.
     """
     try:
         payload = {
-            "patient_id": patient_id,
+            "patient_id": patient_user_id,
             "type": type,
             "title": title,
         }
