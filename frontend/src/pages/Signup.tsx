@@ -21,6 +21,7 @@ export function RegisterPage() {
     empty_fields: "Please enter both username and password",
     invalid_credentials: "Invalid username or password",
     server_error: "An error occurred. Please try again later",
+    incorrect_role: "Incorrect role"
   };
   const registerProviderInternal = async (
     email: string,
@@ -73,23 +74,10 @@ export function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center p-6">
-      <div className="max-w-md w-full">
-        {/* Logo & Title */}
-        <div className="text-center mb-8">
-          <div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl mx-auto mb-4 shadow-lg"
-            style={{ backgroundColor: "#3F7B56" }}
-          >
-            🏥
-          </div>
-          <h1 className="text-3xl  text-slate-800">CareBridge AI</h1>
-          <p className="font-light text-slate-400 mt-2">
-            Your AI-powered healthcare companion
-          </p>
-        </div>
-
-        {/* Card */}
-        <div className="bg-white rounded-2xl p-8">
+      {/* Card */}
+      <div className="bg-white rounded-2xl shadow-lg flex max-w-2xl w-full overflow-hidden">
+        {/* Left side - Form */}
+        <div className="flex-1 p-8">
           <h1 className="font-medium text-[1.7em] pb-5">
             {role == "patient" ? "Patient" : "Provider"} Registration
           </h1>
@@ -161,12 +149,26 @@ export function RegisterPage() {
               `Register as ${role === "patient" ? "Patient" : "Provider"}`
             )}
           </button>
+          
+          {/* Demo notice */}
+          <p className="text-center text-slate-400 text-sm mt-6">
+            Demo mode - no login required
+          </p>
         </div>
 
-        {/* Demo notice */}
-        <p className="text-center text-slate-400 text-sm mt-6">
-          Demo mode - no login required
-        </p>
+        {/* Right side - Logo & Title */}
+        <div className="flex-1 bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col items-center justify-center p-8">
+          <div
+            className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl mb-4 shadow-lg"
+            style={{ backgroundColor: "#3F7B56" }}
+          >
+            🏥
+          </div>
+          <h1 className="text-3xl font-bold text-slate-800 text-center">CareBridge AI</h1>
+          <p className="font-light text-slate-400 mt-4 text-center max-w-xs">
+            Your AI-powered healthcare companion
+          </p>
+        </div>
       </div>
       {role == "provider" ? (
         <ProviderRegisterModal

@@ -207,7 +207,15 @@ def sign_out():
 @app.get("/auth/getuser")
 def get_current_user():
     res = auth_get_current_user()
-    return res
+    print(res)
+    print(res["status"])
+    
+    return JSONResponse(
+        status_code=res["status"],
+        content={
+            "uid": "Not currently signed in" if res["status"] == 400 else res["user"].id
+        }
+    )
 
 
 # --- Chat ---
