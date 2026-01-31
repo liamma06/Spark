@@ -4,14 +4,14 @@ export interface Patient {
   name: string;
   age: number;
   conditions: string[];
-  riskLevel: 'low' | 'medium' | 'high';
+  riskLevel: "low" | "medium" | "high";
   createdAt: Date;
 }
 
 // Chat types
 export interface Message {
   id: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   createdAt: Date;
 }
@@ -23,7 +23,12 @@ export interface Conversation {
 }
 
 // Timeline types
-export type TimelineEventType = 'symptom' | 'appointment' | 'medication' | 'alert' | 'chat';
+export type TimelineEventType =
+  | "symptom"
+  | "appointment"
+  | "medication"
+  | "alert"
+  | "chat";
 
 export interface TimelineEvent {
   id: string;
@@ -35,7 +40,7 @@ export interface TimelineEvent {
 }
 
 // Alert types
-export type AlertSeverity = 'warning' | 'critical';
+export type AlertSeverity = "warning" | "critical";
 
 export interface Alert {
   id: string;
@@ -51,8 +56,8 @@ export interface Alert {
 export interface DecisionNode {
   id: string;
   label: string;
-  type: 'symptom' | 'factor' | 'recommendation';
-  riskContribution?: 'low' | 'medium' | 'high';
+  type: "symptom" | "factor" | "recommendation";
+  riskContribution?: "low" | "medium" | "high";
 }
 
 export interface DecisionEdge {
@@ -66,4 +71,4 @@ export interface DecisionGraph {
 }
 
 // App state types
-export type UserRole = 'patient' | 'provider';
+export type UserRole = "patient" | "provider";
