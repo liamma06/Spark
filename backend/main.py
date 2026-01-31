@@ -1,23 +1,10 @@
+import logging
 import os
 from datetime import datetime
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-
 from fastapi.responses import StreamingResponse, Response, JSONResponse
-from pydantic import BaseModel, Field
-from dotenv import load_dotenv
-from app.supabase import sign_up
-from app.cohere_chat import get_system_prompt, assess_risk, stream_chat
-from app.tts import handle_tts_request
-
-from app.tts import text_to_speech
-import logging
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from app.supabase import (
@@ -26,6 +13,8 @@ from app.supabase import (
     sign_out as auth_sign_out,
     get_current_user as auth_get_current_user,
 )
+from app.cohere_chat import get_system_prompt, assess_risk, stream_chat
+from app.tts import handle_tts_request
 from app.doctors import (
     create_doctor as doctors_create,
     get_my_patients as doctors_get_my_patients,
@@ -46,7 +35,8 @@ from app.alerts import (
 )
 
 from app.timeline import (
-    get_timeline as timeline_get_timeline
+    get_timeline as timeline_get_timeline,
+    add_event as timeline_add_event,
 )
 
 # Load environment variables
@@ -62,53 +52,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# ============== In-Memory (timeline only; alerts use Supabase) ==============
-
-# Timeline events
-timeline_db = [
-    {
-        "id": "evt-1",
-        "patientId": "patient-maria",
-        "type": "symptom",
-        "title": "Reported chest tightness",
-        "details": "Patient described tightness in chest area, especially during morning hours",
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "evt-2",
-        "patientId": "patient-maria",
-        "type": "symptom",
-        "title": "Shortness of breath",
-        "details": "Difficulty breathing when climbing stairs",
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "evt-3",
-        "patientId": "patient-maria",
-        "type": "medication",
-        "title": "Metformin refill",
-        "details": "Monthly diabetes medication refilled",
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "evt-4",
-        "patientId": "patient-james",
-        "type": "symptom",
-        "title": "Sleep difficulties",
-        "details": "Having trouble falling asleep, racing thoughts at night",
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "evt-5",
-        "patientId": "patient-sarah",
-        "type": "symptom",
-        "title": "Mild headache",
-        "details": "Occasional tension headache, likely stress-related",
-        "createdAt": datetime.now().isoformat(),
-    },
-]
-
 
 # ============== Pydantic Models ==============
 
@@ -285,14 +228,10 @@ async def chat(request: ChatRequest):
                     except HTTPException:
                         pass
                 details = last_message[:100] + "..." if len(last_message) > 100 else last_message
-                timeline_db.append({
-                    "id": f"evt-{len(timeline_db) + 1}",
-                    "patientId": request.patientId,
-                    "type": "chat",
-                    "title": "AI conversation",
-                    "details": details,
-                    "createdAt": datetime.now().isoformat(),
-                })
+                try:
+                    timeline_add_event(request.patientId, "chat", "AI conversation", details)
+                except HTTPException:
+                    pass
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -332,17 +271,12 @@ def create_patient(body: CreatePatientBody):
         risk_level=body.risk_level,
     )
 
-# --- Timeline (in-memory for now) ---
+# --- Timeline (Supabase: app.timeline) ---
 
 @app.get("/api/timeline")
-def timeline(patientId: Optional[str] = None):
-    if patientId:
-        return [e for e in timeline_db if e["patientId"] == patientId]
-    return timeline_db
-
-@app.get("/api/get_timeline")
-def get_timeline():
-    timeline_get_timeline("thing")
+def get_timeline(patientId: Optional[str] = None):
+    """List timeline events from Supabase, optionally filtered by patient."""
+    return timeline_get_timeline(patientId)
 
 # --- Alerts (Supabase: app.alerts) ---
 
