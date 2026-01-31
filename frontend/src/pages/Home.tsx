@@ -22,7 +22,7 @@ export function Home() {
   const handleStart = async () => {
     setError(null);
     setLoading(true);
-    const res = await login(username, password);
+    const res = await login(username, password, role);
     setLoading(false);
     if (res.success) {
       if (role === "patient") {
@@ -98,14 +98,13 @@ export function Home() {
           <RoleToggle></RoleToggle>
           <a
             className="text-primary text-sm hover:underline"
-            onClick={() => {navigate("/register")}}
+            onClick={() => {}}
           >
             Register?
           </a>
           <div className="text-red-400 text-sm ml-1">
             {error ? errorMessages[error] : ""}
           </div>
-
           {/* Start Button */}
           <button
             onClick={handleStart}

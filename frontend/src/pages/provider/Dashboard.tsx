@@ -2,10 +2,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { usePatients, useAlerts } from "../../hooks/usePatients";
 import { PatientCard } from "../../components/PatientCard";
 import { AlertCard } from "../../components/AlertCard";
-import { RoleToggle } from "../../components/RoleToggle";
 import { StatCard } from "../../components/StatCard";
 import AccentButton from "../../components/AccentButton";
 import { dummyPatients } from "../../types/dummyPatients";
+import { signOut } from "../../lib/auth";
 
 export function ProviderDashboard() {
   const navigate = useNavigate();
@@ -18,6 +18,7 @@ export function ProviderDashboard() {
   );
 
   const handleSignOut = () => {
+    signOut();
     navigate("/");
   };
 

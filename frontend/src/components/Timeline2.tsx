@@ -14,7 +14,7 @@ function Timeline2(props: Timeline2Props) {
     <div className="bg-white flex flex-col p-6 rounded-2xl">
       <div className="text-lg font-medium pb-2">Health Timeline</div>
       <div
-        className="flex flex-col justify-center bg-bg w-full h-70 rounded-2xl relative overflow-x-scroll scroll-m"
+        className="flex flex-col justify-center w-full h-70 rounded-2xl relative overflow-x-scroll no-scrollbar scroll-m"
         style={{
           maskImage:
             "linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)",

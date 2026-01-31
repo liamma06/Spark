@@ -1,4 +1,4 @@
-import type { Patient, Provider } from "../types";
+import type { Patient, Provider, UserRole } from "../types";
 
 export type LoginError =
   | "empty_fields"
@@ -8,12 +8,13 @@ export type LoginError =
 export async function login(
   email: string,
   password: string,
+  role: UserRole,
 ): Promise<{ success: boolean; error?: LoginError }> {
   if (email == "" || password == "") {
     return { success: false, error: "empty_fields" };
   }
   const res = await fetch(
-    `http://localhost:8000/auth/signin?email=${email}&password=${password}`,
+    `http://localhost:8000/auth/signin?email=${email}&password=${password}&role=${role == "provider" ? "doctor" : "patient"}`,
     {
       method: "POST",
     },
@@ -92,9 +93,7 @@ export async function registerProvider(
   return { success: true };
 }
 
-
-export async function signOut(){
-
+export async function signOut() {
   const res = await fetch("http://localhost:8000/auth/signout", {
     method: "POST",
   });
