@@ -239,7 +239,6 @@ def get_current_user():
 
 # --- Chat ---
 
-<<<<<<< HEAD
 async def _process_timeline_events_async(
     patient_id: str,
     messages: list[dict],
@@ -297,19 +296,13 @@ async def _process_timeline_events_async(
         # Assess risk and create alerts if needed
         risk_level = assess_risk(last_message)
         if risk_level == "high":
-            # Create alert (still in-memory for now; alerts module later)
-            alert_id = f"alert-{len(alerts_db) + 1}"
-            alerts_db.append({
-                "id": alert_id,
-                "patientId": patient_id,
-                "severity": "critical",
-                "message": f"High-risk symptoms reported: \"{last_message[:50]}...\"",
-                "reasoning": "Keywords indicating potentially serious symptoms were detected.",
-                "acknowledged": False,
-                "createdAt": datetime.now().isoformat(),
-            })
-            # Update patient risk level in Supabase
             try:
+                alerts_create_alert(
+                    patient_id,
+                    "critical",
+                    f"High-risk symptoms reported: \"{last_message[:50]}...\"",
+                    "Keywords indicating potentially serious symptoms were detected.",
+                )
                 patients_update_risk(patient_id, "high")
             except HTTPException:
                 pass
