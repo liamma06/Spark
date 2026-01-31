@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from app.supabase import supabase
 
 
-def create_doctor(user_id: str, specialty: str | None = None) -> dict:
+def create_doctor(user_id: str, bio: str, specialty: str | None = None) -> dict:
     """
     Create a doctor row in public.doctors (user_id = auth user id, specialty optional).
     Returns the created doctor row. Raises HTTPException on duplicate user_id or Supabase error.
@@ -17,6 +17,7 @@ def create_doctor(user_id: str, specialty: str | None = None) -> dict:
         res = supabase.table("doctors").insert({
             "user_id": user_id,
             "specialty": specialty or None,
+            "bio": bio
         }).execute()
         if not res.data or len(res.data) == 0:
             raise HTTPException(status_code=500, detail="Failed to create doctor")
