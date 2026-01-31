@@ -1,15 +1,16 @@
-import { Link, useNavigate } from "react-router-dom";
-import { usePatients, useAlerts } from "../../hooks/usePatients";
+import { useNavigate } from "react-router-dom";
+import { useAlerts } from "../../hooks/usePatients";
 import { PatientCard } from "../../components/PatientCard";
 import { AlertCard } from "../../components/AlertCard";
 import { StatCard } from "../../components/StatCard";
 import AccentButton from "../../components/AccentButton";
 import { dummyPatients } from "../../types/dummyPatients";
 import { signOut } from "../../lib/auth";
+import { usePatients } from "../../lib/getPatients";
 
 export function ProviderDashboard() {
   const navigate = useNavigate();
-  const { patients, loading: patientsLoading } = usePatients();
+  const patients = usePatients();
   const { alerts, loading: alertsLoading, acknowledgeAlert } = useAlerts();
 
   const unacknowledgedAlerts = alerts.filter((a) => !a.acknowledged);
@@ -59,7 +60,7 @@ export function ProviderDashboard() {
           <div className="grid grid-cols-3 gap-4 mb-8">
             <StatCard
               title="Total Patients"
-              stat={patients.length}
+              stat={patients.patients.length}
               badgeStat="5"
               badgeDetails="More Patients This Month"
               statColor="text-slate-800"
@@ -122,8 +123,9 @@ export function ProviderDashboard() {
       <div className="flex flex-col h-[95vh]">
         <div className="mb-8 h-full bg-linear-to-br from-green-gradient-dark to-green-gradient-light rounded-2xl p-6 text-white overflow-y-scroll no-scrollbar">
           <div className="text-lg font-medium">Patient List</div>
+
           <div className="flex flex-col w-full gap-1 items-start justify-between mb-6 overflow-y-scroll mt-4">
-            {dummyPatients.map((patient, index) => (
+            {patients.patients.map((patient, index) => (
               <PatientCard key={index} patient={patient} />
             ))}
           </div>
