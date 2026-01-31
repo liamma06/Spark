@@ -1,73 +1,80 @@
-import { useNavigate } from 'react-router-dom';
-import { useAppStore } from '../stores/appStore';
-import { RoleToggle } from '../components/RoleToggle';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAppStore } from "../stores/appStore";
+import { RoleToggle } from "../components/RoleToggle";
 
 export function Home() {
   const navigate = useNavigate();
   const { role } = useAppStore();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleStart = () => {
-    if (role === 'patient') {
-      navigate('/patient');
+    if (role === "patient") {
+      navigate("/patient");
     } else {
-      navigate('/provider');
+      navigate("/provider");
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-50 to-indigo-100 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-bg flex items-center justify-center p-6">
       <div className="max-w-md w-full">
         {/* Logo & Title */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-sky-500 rounded-2xl flex items-center justify-center text-4xl mx-auto mb-4 shadow-lg">
+          <div
+            className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl mx-auto mb-4 shadow-lg"
+            style={{ backgroundColor: "#3F7B56" }}
+          >
             🏥
           </div>
-          <h1 className="text-3xl font-bold text-slate-800">CareBridge AI</h1>
-          <p className="text-slate-600 mt-2">
+          <h1 className="text-3xl  text-slate-800">CareBridge AI</h1>
+          <p className="font-light text-slate-400 mt-2">
             Your AI-powered healthcare companion
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-lg font-semibold text-slate-800 mb-4 text-center">
-            Select your role
-          </h2>
+        <div className="bg-white rounded-2xl p-8">
+          <h1 className="font-medium text-[1.7em] pb-5">
+            {role == "patient" ? "Patient" : "Provider"} Sign In
+          </h1>
 
-          {/* Role Toggle */}
-          <div className="flex justify-center mb-6">
-            <RoleToggle />
+          {/* Login Inputs */}
+          <div className="space-y-4 ">
+            <div>
+              <label className="block text-sm font-medium text-slate-800 mb-2">
+                Username
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter your username"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-800 mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400"
+              />
+            </div>
           </div>
-
-          {/* Description */}
-          <div className="bg-slate-50 rounded-xl p-4 mb-6">
-            {role === 'patient' ? (
-              <div className="text-sm text-slate-600">
-                <p className="font-medium text-slate-800 mb-2">As a Patient:</p>
-                <ul className="space-y-1">
-                  <li>• Chat with your AI health companion</li>
-                  <li>• Track your health timeline</li>
-                  <li>• Get personalized recommendations</li>
-                </ul>
-              </div>
-            ) : (
-              <div className="text-sm text-slate-600">
-                <p className="font-medium text-slate-800 mb-2">As a Provider:</p>
-                <ul className="space-y-1">
-                  <li>• View patient risk alerts</li>
-                  <li>• Access patient timelines</li>
-                  <li>• Understand AI decision reasoning</li>
-                </ul>
-              </div>
-            )}
-          </div>
+          <RoleToggle />
 
           {/* Start Button */}
           <button
             onClick={handleStart}
-            className="w-full py-3 bg-sky-500 text-white rounded-xl font-semibold hover:bg-sky-600 transition-colors shadow-lg shadow-sky-500/25"
+            className="w-full py-3 text-white rounded-full cursor-pointer transition-colors mt-3 bg-primary"
           >
-            Continue as {role === 'patient' ? 'Patient' : 'Provider'}
+            Continue as {role === "patient" ? "Patient" : "Provider"}
           </button>
         </div>
 
