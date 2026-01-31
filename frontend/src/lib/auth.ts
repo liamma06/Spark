@@ -91,3 +91,17 @@ export async function registerProvider(
   console.log(jsonBody);
   return { success: true };
 }
+
+
+export async function signOut(){
+
+  const res = await fetch("http://localhost:8000/auth/signout", {
+    method: "POST",
+  });
+
+  if (!res.ok) {
+    return { error: "invalid_credentials", success: false };
+  }
+
+  return { success: true };
+}
