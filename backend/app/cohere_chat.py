@@ -71,3 +71,46 @@ def stream_chat(messages: list[dict], system_prompt: str):
         if event.type == "content-delta":
             text = event.delta.message.content.text
             yield text
+
+
+def generate_summary(messages: list[dict]) -> str:
+    """
+    Generate a conversation summary using Cohere.
+    messages: list of {"role": str, "content": str} (excluding system message).
+    Returns a markdown-formatted summary.
+    """
+    client = _get_client()
+    
+    # Create a summary prompt
+    summary_prompt = """Create a concise medical conversation summary in markdown format. Include:
+- **Main Symptoms**: What the patient reported
+- **Key Details**: Important information discussed
+- **Recommendations**: Any advice or next steps mentioned
+
+Format as markdown with clear sections."""
+    
+    # Format conversation for summary
+    conversation_text = "\n".join([
+        f"{msg['role'].capitalize()}: {msg['content']}" 
+        for msg in messages 
+        if msg['role'] != 'system'
+    ])
+    
+    summary_messages = [
+        {"role": "system", "content": summary_prompt},
+        {"role": "user", "content": f"Summarize this conversation:\n\n{conversation_text}"}
+    ]
+    
+    # Use chat_stream but collect all chunks
+    response = client.chat_stream(
+        model="command-r-plus-08-2024",
+        messages=summary_messages,
+        max_tokens=500,
+    )
+    
+    summary_text = ""
+    for event in response:
+        if event.type == "content-delta":
+            summary_text += event.delta.message.content.text
+    
+    return summary_text

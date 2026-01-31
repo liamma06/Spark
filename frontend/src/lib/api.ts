@@ -84,6 +84,24 @@ export async function getGreeting(): Promise<{ text: string }> {
   return res.json();
 }
 
+// End Call API - Get closing message and summary
+export async function endCall(
+  messages: { role: string; content: string }[],
+  patientId: string,
+): Promise<{ closingMessage: string; summary: string }> {
+  const res = await fetch(`${API_BASE}/chat/end`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages, patientId }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to end call");
+  }
+
+  return res.json();
+}
+
 // TTS API - Generate speech audio from text
 export async function generateSpeech(
   text: string,
