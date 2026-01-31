@@ -1,17 +1,16 @@
 import os
-import json
-import logging
-import traceback
-import cohere
 from datetime import datetime
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi.responses import StreamingResponse, Response, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from app.supabase import sign_up
+from app.cohere_chat import get_system_prompt, assess_risk, stream_chat
+from app.tts import handle_tts_request
+
 from app.tts import text_to_speech
 
 # Configure logging
@@ -52,12 +51,6 @@ from app.timeline import (
 # Load environment variables
 load_dotenv()
 
-# Initialize Cohere client (v2)
-COHERE_API_KEY = os.getenv("COHERE_API_KEY")
-if not COHERE_API_KEY:
-    raise ValueError("Please set COHERE_API_KEY in your .env file")
-co = cohere.ClientV2(api_key=COHERE_API_KEY)
-
 app = FastAPI(title="CareBridge API")
 
 # CORS for frontend
@@ -71,29 +64,50 @@ app.add_middleware(
 
 # ============== In-Memory (timeline only; alerts use Supabase) ==============
 
-timeline_db = []
-
-# ============== Risk Assessment ==============
-
-HIGH_RISK_KEYWORDS = [
-    "chest pain", "chest tightness", "difficulty breathing", "can't breathe",
-    "severe pain", "unconscious", "fainted", "bleeding heavily", "suicidal",
-    "want to die", "heart attack", "stroke", "seizure", "numbness"
+# Timeline events
+timeline_db = [
+    {
+        "id": "evt-1",
+        "patientId": "patient-maria",
+        "type": "symptom",
+        "title": "Reported chest tightness",
+        "details": "Patient described tightness in chest area, especially during morning hours",
+        "createdAt": datetime.now().isoformat(),
+    },
+    {
+        "id": "evt-2",
+        "patientId": "patient-maria",
+        "type": "symptom",
+        "title": "Shortness of breath",
+        "details": "Difficulty breathing when climbing stairs",
+        "createdAt": datetime.now().isoformat(),
+    },
+    {
+        "id": "evt-3",
+        "patientId": "patient-maria",
+        "type": "medication",
+        "title": "Metformin refill",
+        "details": "Monthly diabetes medication refilled",
+        "createdAt": datetime.now().isoformat(),
+    },
+    {
+        "id": "evt-4",
+        "patientId": "patient-james",
+        "type": "symptom",
+        "title": "Sleep difficulties",
+        "details": "Having trouble falling asleep, racing thoughts at night",
+        "createdAt": datetime.now().isoformat(),
+    },
+    {
+        "id": "evt-5",
+        "patientId": "patient-sarah",
+        "type": "symptom",
+        "title": "Mild headache",
+        "details": "Occasional tension headache, likely stress-related",
+        "createdAt": datetime.now().isoformat(),
+    },
 ]
 
-MEDIUM_RISK_KEYWORDS = [
-    "fever", "persistent", "worsening", "dizzy", "nausea", "vomiting",
-    "can't sleep", "insomnia", "anxiety", "anxious", "depressed",
-    "shortness of breath", "headache", "migraine", "palpitations"
-]
-
-def assess_risk(message: str) -> str:
-    lower = message.lower()
-    if any(kw in lower for kw in HIGH_RISK_KEYWORDS):
-        return "high"
-    if any(kw in lower for kw in MEDIUM_RISK_KEYWORDS):
-        return "medium"
-    return "low"
 
 # ============== Pydantic Models ==============
 
@@ -108,9 +122,6 @@ class ChatRequest(BaseModel):
 class AlertAcknowledge(BaseModel):
     acknowledged: bool = True
 
-class TTSRequest(BaseModel):
-    text: str
-    voice_id: Optional[str] = None
 
 class CreateDoctorBody(BaseModel):
     user_id: str = Field(..., alias="userId")
@@ -139,28 +150,14 @@ class PatientDoctorLink(BaseModel):
         populate_by_name = True
 
 
-# ============== System Prompt ==============
+class TTSRequest(BaseModel):
+    text: str
+    voice_id: str | None = Field(None, alias="voiceId")
 
-SYSTEM_PROMPT = """You are CareBridge, a caring and empathetic AI health companion. Your role is to:
+    class Config:
+        populate_by_name = True
 
-1. Listen attentively to patients describing their symptoms or health concerns
-2. Ask clarifying questions to better understand their situation
-3. Provide supportive, non-diagnostic guidance
-4. Encourage patients to seek professional medical care when appropriate
-5. Help patients articulate their symptoms clearly for their healthcare providers
-
-Important guidelines:
-- Be warm, empathetic, and reassuring
-- Never diagnose conditions or prescribe treatments
-- Always recommend consulting a healthcare provider for serious concerns
-- Ask follow-up questions about symptom duration, severity, and any related factors
-- **Keep responses SHORT and concise - aim for 2-3 sentences maximum**
-- Be direct and to the point while remaining caring
-- Prioritize brevity without losing empathy
-
-Remember: You are a bridge to care, not a replacement for professional medical advice. Keep your responses brief to ensure quick, helpful interactions."""
-
-# ============== Routes ==============
+# Basic Routes
 
 @app.get("/")
 def home():
@@ -173,13 +170,14 @@ def read_root():
 def health_check():
     return {"status": "ok"}
 
-# --- Auth (Supabase) ---
+# Login and Signup Routes 
 
 @app.post("/auth/signup")
 def read_root(email: str, password: str, full_name: str, role: str):
     result = auth_sign_up(email, password, full_name, role)
     return result
 
+#Cohere Chats 
 @app.post("/auth/signin")
 def sign_in(email: str, password: str):
     res = auth_sign_in(email=email, password=password)
@@ -201,10 +199,8 @@ def get_current_user():
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
-    """Stream chat responses from Cohere"""
-    
-    # Add patient context to system prompt (from Supabase)
-    system_prompt = SYSTEM_PROMPT
+    """Stream chat responses from Cohere (app.cohere_chat)."""
+    system_prompt = get_system_prompt()
     if request.patientId:
         try:
             patient = patients_get_patient(request.patientId)
@@ -212,56 +208,27 @@ async def chat(request: ChatRequest):
             conditions = ", ".join(conds) if conds else "None reported"
             system_prompt += f"\n\nPatient context: {patient['name']}, {patient['age']} years old. Known conditions: {conditions}."
         except HTTPException:
-            pass  # skip patient context if not found
-    
-    # Build messages for Cohere v2 API
-    cohere_messages = [{"role": "system", "content": system_prompt}]
-    for msg in request.messages:
-        cohere_messages.append({
-            "role": msg.role,
-            "content": msg.content
-        })
-    
-    # Get the last user message for risk assessment
+            pass
+    messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
     last_message = request.messages[-1].content if request.messages else ""
-    
+
     async def generate():
         try:
-            # Use Cohere v2 chat with streaming
-            response = co.chat_stream(
-                model="command-r-plus-08-2024",
-                messages=cohere_messages,
-            )
-            
-            full_response = ""
-            for event in response:
-                if event.type == "content-delta":
-                    text = event.delta.message.content.text
-                    full_response += text
-                    yield text
-            
-            # After streaming, assess risk and create alerts if needed
+            for chunk in stream_chat(messages, system_prompt):
+                yield chunk
             if request.patientId:
                 risk_level = assess_risk(last_message)
                 if risk_level == "high":
-                    # Create alert (still in-memory for now; timeline/alerts modules later)
-                    alert_id = f"alert-{len(alerts_db) + 1}"
-                    alerts_db.append({
-                        "id": alert_id,
-                        "patientId": request.patientId,
-                        "severity": "critical",
-                        "message": f"High-risk symptoms reported: \"{last_message[:50]}...\"",
-                        "reasoning": "Keywords indicating potentially serious symptoms were detected.",
-                        "acknowledged": False,
-                        "createdAt": datetime.now().isoformat(),
-                    })
-                    # Update patient risk level in Supabase
                     try:
+                        alerts_create_alert(
+                            request.patientId,
+                            "critical",
+                            f"High-risk symptoms reported: \"{last_message[:50]}...\"",
+                            "Keywords indicating potentially serious symptoms were detected.",
+                        )
                         patients_update_risk(request.patientId, "high")
                     except HTTPException:
                         pass
-                
-                # Add to timeline (in-memory for now)
                 details = last_message[:100] + "..." if len(last_message) > 100 else last_message
                 timeline_db.append({
                     "id": f"evt-{len(timeline_db) + 1}",
@@ -275,43 +242,16 @@ async def chat(request: ChatRequest):
             import traceback
             traceback.print_exc()
             yield f"I'm sorry, I encountered an error: {str(e)}"
-    
+
     return StreamingResponse(generate(), media_type="text/plain")
 
-# --- Text-to-Speech ---
+# --- TTS (app.tts / ElevenLabs) ---
 
 @app.post("/api/tts")
-async def generate_speech(request: TTSRequest):
-    """Generate speech audio from text using ElevenLabs"""
-    try:
-        logger.info(f"TTS request received - text length: {len(request.text)}, voice_id: {request.voice_id or 'default'}")
-        
-        if not request.text or not request.text.strip():
-            raise ValueError("Text cannot be empty")
-        
-        audio_bytes = text_to_speech(request.text, request.voice_id)
-        
-        logger.info(f"TTS generation successful - audio size: {len(audio_bytes)} bytes")
-        
-        return Response(
-            content=audio_bytes,
-            media_type="audio/mpeg",
-            headers={
-                "Content-Disposition": "inline; filename=speech.mp3"
-            }
-        )
-    except ValueError as e:
-        error_msg = str(e)
-        logger.error(f"TTS ValueError: {error_msg}")
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=400, detail=error_msg)
-    except Exception as e:
-        error_msg = f"TTS generation failed: {str(e)}"
-        logger.error(f"TTS Exception: {error_msg}")
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=error_msg)
+def generate_speech(request: TTSRequest):
+    """Generate speech from text using ElevenLabs (app.tts)."""
+    return handle_tts_request(request.text, request.voice_id)
 
-# --- Patients ---
 # --- Patients (Supabase: app.patients) ---
 
 @app.get("/api/patients")
