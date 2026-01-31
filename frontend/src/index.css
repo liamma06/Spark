@@ -35,6 +35,7 @@
   --color-risk-low: #22c55e;
   --color-risk-medium: #f59e0b;
   --color-risk-high: #ef4444;
+  background-color: var(--color-bg);
 }
 
 body {

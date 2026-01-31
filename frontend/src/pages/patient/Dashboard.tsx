@@ -18,7 +18,7 @@ export function PatientDashboard() {
   };
 
   return (
-    <div className=" bg-white p-8">
+    <div className=" bg-bg p-8">
       {/* Main */}
       <main className="bg-bg p-4 gap-3 rounded-2xl w-full">
         {/* Welcome */}
@@ -66,6 +66,22 @@ export function PatientDashboard() {
         {/* Quick actions */}
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="grid grid-cols-1 gap-3">
+            <Link
+              to="/patient/chat"
+              className="p-6 bg-linear-to-b from-green-gradient-dark to-green-gradient-light text-white rounded-2xl "
+            >
+              <div className="grid grid-cols-2 justify-items-end">
+                <div className="flex flex-col w-full">
+                  <h3 className="text-lg font-medium">
+                    Chat With Care Compainion
+                  </h3>
+                  <p className="text-white/70 text-sm">
+                    Chat with your care compainion
+                  </p>
+                </div>
+                <CircleArrow colorFill></CircleArrow>
+              </div>
+            </Link>
             <Link
               to="/patient/chat"
               className="flex flex-col gap-1 p-6 bg-white rounded-2xl transition-colors"

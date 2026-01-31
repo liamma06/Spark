@@ -22,10 +22,10 @@ export function ProviderDashboard() {
   };
 
   return (
-    <div className="grid grid-cols-[3fr_1fr] p-8 gap-3">
-      <div className="min-h-screen bg-slate-50 ">
+    <div className="grid grid-cols-[3fr_1fr] p-8 gap-3 bg-bg">
+      <div className="min-h-screen">
         {/* Main */}
-        <main className="bg-bg mx-auto px-6 py-8 rounded-2xl flex flex-col gap-3">
+        <div className="bg-bg mx-auto px-6 py-8 flex flex-col gap-3">
           <div className="flex items-center justify-between pb-1">
             <div className="flex flex-col gap-2">
               <h2 className="text-3xl font-medium  text-slate-800 ">
@@ -115,7 +115,7 @@ export function ProviderDashboard() {
               </h2>
             </section>
           </div>
-        </main>
+        </div>
       </div>
       {/* Patient Side List */}
       <div className="flex flex-col h-[95vh]">
