@@ -1,5 +1,6 @@
 import logging
 import os
+import uuid
 from datetime import datetime
 from typing import Optional
 from fastapi import FastAPI, HTTPException, BackgroundTasks
@@ -13,7 +14,7 @@ from app.supabase import (
     sign_out as auth_sign_out,
     get_current_user as auth_get_current_user,
 )
-from app.cohere_chat import get_system_prompt, assess_risk, stream_chat
+from app.cohere_chat import get_system_prompt, assess_risk, stream_chat, _get_client
 from app.tts import handle_tts_request, text_to_speech
 
 # Configure logging
@@ -74,7 +75,6 @@ class AlertAcknowledge(BaseModel):
     acknowledged: bool = True
 
 
-
 class CreateDoctorBody(BaseModel):
     user_id: str = Field(..., alias="userId")
     specialty: str | None = Field(None)
@@ -133,26 +133,20 @@ class TTSRequest(BaseModel):
 
 class PatientSignUp(BaseModel):
     email: str
-    password: str 
+    password: str
     address: str
     name: str
     age: int
-    condition: list[str]
+    conditions: list[str]
+
 
 class DoctorSignUp(BaseModel):
     email: str
-    password: str 
+    password: str
     speciality: str
     name: str
     bio: str
 
-<<<<<<< HEAD
-Timeline tracking:
-- When patients mention symptoms, especially with dates (e.g., "chest pain started on January 31"), acknowledge this clearly
-- When appointments, medications, or other health events are mentioned, acknowledge them naturally
-- This helps build an accurate timeline of the patient's health journey
-
-Remember: You are a bridge to care, not a replacement for professional medical advice. Keep your responses brief to ensure quick, helpful interactions."""
 
 # Basic Routes
 
@@ -178,24 +172,21 @@ def patient_sign_up(body: PatientSignUp):
         # Sign in
         clientUid = auth_sign_up(email=body.email, password=body.password, role="patient", full_name=body.name)
 
-        # Create 
+        # Create patient
         return patients_create(
             name=body.name,
             age=body.age,
             user_id=clientUid,
             conditions=body.condition,
-            # risk_level=body.risk_level,
             address=body.address
-
         )
-        
     except Exception as e:
         return JSONResponse(
             status_code=400,
-            content={
-                "msg": f"Error: {e}"
-            }
+            content={"msg": f"Error: {e}"}
         )
+
+
 @app.post("/auth/doctor/signup")
 def doctor_sign_up(body: DoctorSignUp):
     try:
@@ -204,18 +195,16 @@ def doctor_sign_up(body: DoctorSignUp):
             user_id=clientUid,
             specialty=body.speciality,
             bio=body.bio
-
         )
-
     except Exception as e:
         return JSONResponse(
             status_code=400,
-            content={
-                "msg": f"Error: {e}"
-            }
+            content={"msg": f"Error: {e}"}
         )
 
-#Cohere Chats 
+
+# --- Auth Routes ---
+
 @app.post("/auth/signin")
 def sign_in(email: str, password: str):
     res = auth_sign_in(email=email, password=password)
@@ -226,7 +215,6 @@ def sign_in(email: str, password: str):
 @app.post("/auth/sign_out")
 def sign_out():
     res = auth_sign_out()
-
     return res
 
 
@@ -238,6 +226,15 @@ def get_current_user():
 
 # --- Chat ---
 
+def _is_valid_uuid(value: str) -> bool:
+    """Check if a string is a valid UUID"""
+    try:
+        uuid.UUID(value)
+        return True
+    except (ValueError, AttributeError):
+        return False
+
+
 async def _process_timeline_events_async(
     patient_id: str,
     messages: list[dict],
@@ -245,6 +242,11 @@ async def _process_timeline_events_async(
     last_message: str
 ):
     """Background task to extract timeline events and assess risk"""
+    # Skip timeline processing for demo/non-UUID patient IDs
+    if not _is_valid_uuid(patient_id):
+        logger.info(f"Skipping timeline processing for non-UUID patient_id: {patient_id}")
+        return
+    
     try:
         # Build conversation messages for extraction (include the assistant's response)
         extraction_messages = []
@@ -360,7 +362,6 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
 
     return StreamingResponse(generate(), media_type="text/plain")
 
-<<<<<<< HEAD
 # --- Helper function for summary generation ---
 
 async def _generate_summary(messages: list[ChatMessage]) -> str:
@@ -387,7 +388,8 @@ Keep the summary clear, organized, and professional. Focus on actionable informa
     })
     
     # Generate summary using Cohere
-    response = co.chat(
+    client = _get_client()
+    response = client.chat(
         model="command-r-plus-08-2024",
         messages=cohere_messages,
     )
@@ -460,7 +462,8 @@ Keep it brief (2-3 sentences) and warm."""
         })
         
         # Generate closing message
-        closing_response = co.chat(
+        client = _get_client()
+        closing_response = client.chat(
             model="command-r-plus-08-2024",
             messages=cohere_messages,
         )
@@ -552,7 +555,6 @@ def create_patient(body: CreatePatientBody):
 
 @app.get("/api/timeline")
 def get_timeline(patientId: Optional[str] = None):
-<<<<<<< HEAD
     """Get timeline events for a patient or all patients"""
     try:
         events = timeline_get_timeline(patientId)
