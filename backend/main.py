@@ -197,7 +197,8 @@ def health_check():
 
 @app.post("/signup")
 def read_root(email: str, password: str, full_name: str, role: str):
-    sign_up(email, password, full_name, role)
+    result = sign_up(email, password, full_name, role)
+    return result
 
 
 # --- Chat ---
