@@ -7,9 +7,10 @@ app = FastAPI(title="Backend")
 def home():
     return {"status": "hello world"}
 
-@app.get("/signup")
-def read_root(email: str, password: str):
-    sign_up(email, password)
+#need some sort of validation for role so only patient or doctor can sign up
+@app.post("/signup")
+def read_root(email: str, password: str, full_name: str, role: str):
+    sign_up(email, password, full_name, role)
 
 @app.get("/health")
 def health_check():

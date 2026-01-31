@@ -16,13 +16,15 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-def sign_up(email: str, password: str) -> dict:
+def sign_up(email: str, password: str, full_name: str, role: str) -> dict:
     """
     Sign up a new user with email and password
     
     Args:
         email: User's email address
         password: User's password
+        name: User's name 
+        role: User's role(patient,doctor)
         
     Returns:
         dict: Authentication response with user data and session
@@ -30,13 +32,20 @@ def sign_up(email: str, password: str) -> dict:
     try:
         response = supabase.auth.sign_up({
             "email": email,
-            "password": password
+            "password": password,
+            "options":{
+                "data":{
+                    "full_name": full_name,
+                    "role": role
+                }
+            }
         })
         
         if response.user:
             print(f"✅ Sign up successful! User ID: {response.user.id}")
             print(f"Email: {response.user.email}")
-            
+            print(f"Name: {response.user.user_metadata.get('full_name')}")
+            print(f"Role: {response.user.user_metadata.get('role')}")
             # Check if email confirmation is required
             if not response.session:
                 print("⚠️  Please check your email to confirm your account")
@@ -81,6 +90,8 @@ def sign_in(email: str, password: str) -> dict:
             print(f"✅ Sign in successful! Welcome back!")
             print(f"User ID: {response.user.id}")
             print(f"Email: {response.user.email}")
+            print(f"Name: {response.user.user_metadata.get('full_name')}")
+            print(f"Role: {response.user.user_metadata.get('role')}")
             print(f"Access Token: {response.session.access_token[:20]}...")
             
             return {
