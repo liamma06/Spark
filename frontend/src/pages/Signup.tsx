@@ -31,6 +31,7 @@ export function RegisterPage() {
     const res = await registerProvider(email, password, pro);
 
     if (res.success) {
+      navigate("/provider");
       setError(null);
       setLoading(false);
     } else {
@@ -47,6 +48,7 @@ export function RegisterPage() {
     const res = await registerPatient(email, password, pat);
 
     if (res.success) {
+      navigate("/patient");
       setError(null);
       setLoading(false);
     } else {

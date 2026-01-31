@@ -30,44 +30,35 @@ def sign_up(email: str, password: str, full_name: str, role: str) -> dict:
     Returns:
         dict: Authentication response with user data and session
     """
-    try:
-        response = supabase.auth.sign_up({
-            "email": email,
-            "password": password,
-            "options":{
-                "data":{
-                    "full_name": full_name,
-                    "role": role
-                }
+    response = supabase.auth.sign_up({
+        "email": email,
+        "password": password,
+        "options":{
+            "data":{
+                "full_name": full_name,
+                "role": role
             }
-        })
-        
-        if response.user:
-            print(f"Sign up successful! User ID: {response.user.id}")
-            print(f"Email: {response.user.email}")
-            print(f"Name: {response.user.user_metadata.get('full_name')}")
-            print(f"Role: {response.user.user_metadata.get('role')}")
-            # Check if email confirmation is required
-            if not response.session:
-                print("Please check your email to confirm your account")
-            
-            return {
-                "success": True,
-                "user": response.user,
-                "session": response.session
-            }
-        else:
-            return {
-                "success": False,
-                "error": "Sign up failed"
-            }
-            
-    except Exception as e:
-        print(f"Sign up error: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e)
         }
+    })
+    
+    if response.user:
+        print(f"Sign up successful! User ID: {response.user.id}")
+        print(f"Email: {response.user.email}")
+        print(f"Name: {response.user.user_metadata.get('full_name')}")
+        print(f"Role: {response.user.user_metadata.get('role')}")
+        # Check if email confirmation is required
+        if not response.session:
+            print("Please check your email to confirm your account")
+        
+        return response.user.id
+    else:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "msg": "Error signing up"
+            }
+        )
+            
 
 
 def sign_in(email: str, password: str) -> dict:

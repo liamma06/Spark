@@ -41,15 +41,21 @@ export async function registerPatient(
     age: patient.age,
     address: patient.address,
     conditions: patient.conditions,
+    name: patient.name,
   };
   const res = await fetch("http://localhost:8000/auth/patient/signup", {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json", // 3. Set the Content-Type header
+    },
     body: JSON.stringify(body),
   });
 
   if (!res.ok) {
     return { error: "invalid_credentials", success: false };
   }
+  const jsonBody = await res.json();
+  console.log(jsonBody);
 
   return { success: true };
 }
@@ -67,9 +73,13 @@ export async function registerProvider(
     specialty: provider.specialty,
     address: provider.address,
     bio: provider.bio,
+    name: provider.name,
   };
   const res = await fetch("http://localhost:8000/auth/doctor/signup", {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json", // 3. Set the Content-Type header
+    },
     body: JSON.stringify(body),
   });
 
@@ -77,5 +87,7 @@ export async function registerProvider(
     return { error: "invalid_credentials", success: false };
   }
 
+  const jsonBody = await res.json();
+  console.log(jsonBody);
   return { success: true };
 }
