@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { useAppStore } from '../../stores/appStore';
 import { Chat as ChatComponent } from '../../components/Chat';
-import { RoleToggle } from '../../components/RoleToggle';
+import { RoleToggleRegister } from '../../components/RoleToggle';
 
 export function PatientChat() {
   const { currentPatientId } = useAppStore();
@@ -53,6 +53,7 @@ export function PatientChat() {
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
+<<<<<<< HEAD
             {chatEnded ? (
               <button
                 onClick={handleReturnToDashboard}
@@ -69,24 +70,38 @@ export function PatientChat() {
                 End Chat
               </button>
             )}
+=======
+            <Link
+              to="/patient"
+              className="text-slate-600 hover:text-slate-800 transition-colors"
+            >
+              ← Back
+            </Link>
+>>>>>>> f45353093bc95f9c12913f2c6251303d6c30e60d
             <div className="flex items-center gap-3">
               <span className="text-2xl">🏥</span>
-              <h1 className="text-xl font-bold text-slate-800">Care Companion</h1>
+              <h1 className="text-xl font-bold text-slate-800">
+                Care Companion
+              </h1>
             </div>
           </div>
-          <RoleToggle />
+          <RoleToggleRegister />
         </div>
       </header>
 
       {/* Chat takes full remaining height with wider layout for 3D model */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-6">
         <div className="h-[calc(100vh-140px)]">
+<<<<<<< HEAD
           <ChatComponent 
             patientId={currentPatientId || 'demo'} 
             onEndChatReady={(endChatFn) => {
               endChatRef.current = endChatFn;
             }}
           />
+=======
+          <ChatComponent patientId={currentPatientId || "demo"} />
+>>>>>>> f45353093bc95f9c12913f2c6251303d6c30e60d
         </div>
       </main>
 

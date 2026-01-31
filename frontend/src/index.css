@@ -14,7 +14,15 @@
   --color-green-gradient-dark: #12432c;
   --color-green-gradient-light: #237f58;
 }
-
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+}
 @utility secondary-text {
   color: var(--color-secondary-text);
   font-weight: 300;

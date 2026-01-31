@@ -1,17 +1,20 @@
-import os
-import json
 import logging
-import traceback
-import cohere
+import os
 from datetime import datetime
 from typing import Optional
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, Response
+from fastapi.responses import StreamingResponse, Response, JSONResponse
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
-from app.supabase import sign_up
-from app.tts import text_to_speech
+from app.supabase import (
+    sign_up as auth_sign_up,
+    sign_in as auth_sign_in,
+    sign_out as auth_sign_out,
+    get_current_user as auth_get_current_user,
+)
+from app.cohere_chat import get_system_prompt, assess_risk, stream_chat
+from app.tts import handle_tts_request, text_to_speech
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +32,11 @@ from app.patients import (
     create_patient as patients_create,
     update_patient_risk as patients_update_risk,
 )
+from app.alerts import (
+    get_alerts as alerts_get_alerts,
+    acknowledge_alert as alerts_acknowledge_alert,
+    create_alert as alerts_create_alert,
+)
 from app.timeline import (
     get_timeline as timeline_get_timeline,
     add_event as timeline_add_event,
@@ -37,12 +45,6 @@ from app.extract import extract_timeline_events
 
 # Load environment variables
 load_dotenv()
-
-# Initialize Cohere client (v2)
-COHERE_API_KEY = os.getenv("COHERE_API_KEY")
-if not COHERE_API_KEY:
-    raise ValueError("Please set COHERE_API_KEY in your .env file")
-co = cohere.ClientV2(api_key=COHERE_API_KEY)
 
 app = FastAPI(title="CareBridge API")
 
@@ -55,112 +57,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ============== In-Memory Data Store ==============
-
-# Timeline events
-timeline_db = [
-    {
-        "id": "evt-1",
-        "patientId": "patient-maria",
-        "type": "symptom",
-        "title": "Reported chest tightness",
-        "details": "Patient described tightness in chest area, especially during morning hours",
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "evt-2",
-        "patientId": "patient-maria",
-        "type": "symptom",
-        "title": "Shortness of breath",
-        "details": "Difficulty breathing when climbing stairs",
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "evt-3",
-        "patientId": "patient-maria",
-        "type": "medication",
-        "title": "Metformin refill",
-        "details": "Monthly diabetes medication refilled",
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "evt-4",
-        "patientId": "patient-james",
-        "type": "symptom",
-        "title": "Sleep difficulties",
-        "details": "Having trouble falling asleep, racing thoughts at night",
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "evt-5",
-        "patientId": "patient-sarah",
-        "type": "symptom",
-        "title": "Mild headache",
-        "details": "Occasional tension headache, likely stress-related",
-        "createdAt": datetime.now().isoformat(),
-    },
-]
-
-# Alerts
-alerts_db = [
-    {
-        "id": "alert-1",
-        "patientId": "patient-maria",
-        "severity": "critical",
-        "message": "Chest tightness reported - potential cardiac concern",
-        "reasoning": "Patient is 67 years old with diabetes and hypertension history. Combination of chest tightness and shortness of breath requires urgent evaluation.",
-        "acknowledged": False,
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "alert-2",
-        "patientId": "patient-james",
-        "severity": "warning",
-        "message": "Persistent sleep issues may require intervention",
-        "reasoning": "Patient has reported sleep difficulties for over a week. Combined with existing anxiety diagnosis, may need medication adjustment.",
-        "acknowledged": False,
-        "createdAt": datetime.now().isoformat(),
-    },
-]
-
-# ============== Risk Assessment ==============
-
-HIGH_RISK_KEYWORDS = [
-    "chest pain", "chest tightness", "difficulty breathing", "can't breathe",
-    "severe pain", "unconscious", "fainted", "bleeding heavily", "suicidal",
-    "want to die", "heart attack", "stroke", "seizure", "numbness"
-]
-
-MEDIUM_RISK_KEYWORDS = [
-    "fever", "persistent", "worsening", "dizzy", "nausea", "vomiting",
-    "can't sleep", "insomnia", "anxiety", "anxious", "depressed",
-    "shortness of breath", "headache", "migraine", "palpitations"
-]
-
-def assess_risk(message: str) -> str:
-    lower = message.lower()
-    if any(kw in lower for kw in HIGH_RISK_KEYWORDS):
-        return "high"
-    if any(kw in lower for kw in MEDIUM_RISK_KEYWORDS):
-        return "medium"
-    return "low"
-
 # ============== Pydantic Models ==============
+
 
 class ChatMessage(BaseModel):
     role: str
     content: str
 
+
 class ChatRequest(BaseModel):
     messages: list[ChatMessage]
     patientId: Optional[str] = None
 
+
 class AlertAcknowledge(BaseModel):
     acknowledged: bool = True
 
-class TTSRequest(BaseModel):
-    text: str
-    voice_id: Optional[str] = None
+
 
 class CreateDoctorBody(BaseModel):
     user_id: str = Field(..., alias="userId")
@@ -211,25 +124,29 @@ class ChatCloseResponse(BaseModel):
         populate_by_name = True
 
 
-# ============== System Prompt ==============
+class TTSRequest(BaseModel):
+    text: str
+    voice_id: str | None = Field(None, alias="voiceId")
 
-SYSTEM_PROMPT = """You are CareBridge, a caring and empathetic AI health companion. Your role is to:
+    class Config:
+        populate_by_name = True
 
-1. Listen attentively to patients describing their symptoms or health concerns
-2. Ask clarifying questions to better understand their situation
-3. Provide supportive, non-diagnostic guidance
-4. Encourage patients to seek professional medical care when appropriate
-5. Help patients articulate their symptoms clearly for their healthcare providers
+class PatientSignUp(BaseModel):
+    email: str
+    password: str 
+    address: str
+    name: str
+    age: int
+    conditions: list[str]
 
-Important guidelines:
-- Be warm, empathetic, and reassuring
-- Never diagnose conditions or prescribe treatments
-- Always recommend consulting a healthcare provider for serious concerns
-- Ask follow-up questions about symptom duration, severity, and any related factors
-- **Keep responses SHORT and concise - aim for 2-3 sentences maximum**
-- Be direct and to the point while remaining caring
-- Prioritize brevity without losing empathy
+class DoctorSignUp(BaseModel):
+    email: str
+    password: str 
+    speciality: str
+    name: str
+    bio: str
 
+<<<<<<< HEAD
 Timeline tracking:
 - When patients mention symptoms, especially with dates (e.g., "chest pain started on January 31"), acknowledge this clearly
 - When appointments, medications, or other health events are mentioned, acknowledge them naturally
@@ -237,28 +154,92 @@ Timeline tracking:
 
 Remember: You are a bridge to care, not a replacement for professional medical advice. Keep your responses brief to ensure quick, helpful interactions."""
 
-# ============== Routes ==============
+# Basic Routes
+
 
 @app.get("/")
 def home():
     return {"status": "hello world"}
 
+
 def read_root():
     return {"status": "ok", "message": "CareBridge API is running"}
+
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
 
-# --- Auth (Supabase) ---
+# --------- AUTH ROUTES ------------------
 
-@app.post("/signup")
-def read_root(email: str, password: str, full_name: str, role: str):
-    result = sign_up(email, password, full_name, role)
-    return result
+@app.post("/auth/patient/signup")
+def patient_sign_up(body: PatientSignUp):
+    try:
+        # Sign in
+        clientUid = auth_sign_up(email=body.email, password=body.password, role="patient", full_name=body.name)
+
+        # Create 
+        return patients_create(
+            name=body.name,
+            age=body.age,
+            user_id=clientUid,
+            conditions=body.conditions,
+            # risk_level=body.risk_level,
+            address=body.address
+
+        )
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "msg": f"Error: {e}"
+            }
+        )
+@app.post("/auth/doctor/signup")
+def doctor_sign_up(body: DoctorSignUp):
+    try:
+        clientUid = auth_sign_up(email=body.email, password=body.password, role="doctor", full_name=body.name)
+
+        return doctors_create(
+            user_id=clientUid,
+            specialty=body.speciality,
+            bio=body.bio
+
+        )
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "msg": f"Error: {e}"
+            }
+        )
+
+#Cohere Chats 
+@app.post("/auth/signin")
+def sign_in(email: str, password: str):
+    res = auth_sign_in(email=email, password=password)
+
+    return res
+
+
+@app.post("/auth/sign_out")
+def sign_out():
+    res = auth_sign_out()
+
+    return res
+
+
+@app.get("/auth/getuser")
+def get_current_user():
+    res = auth_get_current_user()
+    return res
+
 
 # --- Chat ---
 
+<<<<<<< HEAD
 async def _process_timeline_events_async(
     patient_id: str,
     messages: list[dict],
@@ -348,10 +329,8 @@ async def _process_timeline_events_async(
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
-    """Stream chat responses from Cohere"""
-    
-    # Add patient context to system prompt (from Supabase)
-    system_prompt = SYSTEM_PROMPT
+    """Stream chat responses from Cohere (app.cohere_chat) with async timeline processing."""
+    system_prompt = get_system_prompt()
     if request.patientId:
         try:
             patient = patients_get_patient(request.patientId)
@@ -359,54 +338,37 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
             conditions = ", ".join(conds) if conds else "None reported"
             system_prompt += f"\n\nPatient context: {patient['name']}, {patient['age']} years old. Known conditions: {conditions}."
         except HTTPException:
-            pass  # skip patient context if not found
-    
-    # Build messages for Cohere v2 API
-    cohere_messages = [{"role": "system", "content": system_prompt}]
-    for msg in request.messages:
-        cohere_messages.append({
-            "role": msg.role,
-            "content": msg.content
-        })
-    
-    # Get the last user message for risk assessment
+            pass
+    messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
     last_message = request.messages[-1].content if request.messages else ""
-    
+
     async def generate():
         try:
-            # Use Cohere v2 chat with streaming
-            response = co.chat_stream(
-                model="command-r-plus-08-2024",
-                messages=cohere_messages,
-            )
-            
+            # Collect full response for async timeline processing
             full_response = ""
-            for event in response:
-                if event.type == "content-delta":
-                    text = event.delta.message.content.text
-                    full_response += text
-                    yield text
+            for chunk in stream_chat(messages, system_prompt):
+                full_response += chunk
+                yield chunk
             
             # Schedule timeline event extraction and risk assessment as background task
             # This runs after the response is sent, so it doesn't delay the user
             if request.patientId:
-                # Convert messages to dict format for background task
-                messages_dict = [{"role": msg.role, "content": msg.content} for msg in request.messages]
                 background_tasks.add_task(
                     _process_timeline_events_async,
                     request.patientId,
-                    messages_dict,
+                    messages,
                     full_response,
                     last_message
                 )
-                    
         except Exception as e:
             import traceback
+
             traceback.print_exc()
             yield f"I'm sorry, I encountered an error: {str(e)}"
-    
+
     return StreamingResponse(generate(), media_type="text/plain")
 
+<<<<<<< HEAD
 # --- Helper function for summary generation ---
 
 async def _generate_summary(messages: list[ChatMessage]) -> str:
@@ -563,38 +525,12 @@ Keep it brief (2-3 sentences) and warm."""
 # --- Text-to-Speech ---
 
 @app.post("/api/tts")
-async def generate_speech(request: TTSRequest):
-    """Generate speech audio from text using ElevenLabs"""
-    try:
-        logger.info(f"TTS request received - text length: {len(request.text)}, voice_id: {request.voice_id or 'default'}")
-        
-        if not request.text or not request.text.strip():
-            raise ValueError("Text cannot be empty")
-        
-        audio_bytes = text_to_speech(request.text, request.voice_id)
-        
-        logger.info(f"TTS generation successful - audio size: {len(audio_bytes)} bytes")
-        
-        return Response(
-            content=audio_bytes,
-            media_type="audio/mpeg",
-            headers={
-                "Content-Disposition": "inline; filename=speech.mp3"
-            }
-        )
-    except ValueError as e:
-        error_msg = str(e)
-        logger.error(f"TTS ValueError: {error_msg}")
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=400, detail=error_msg)
-    except Exception as e:
-        error_msg = f"TTS generation failed: {str(e)}"
-        logger.error(f"TTS Exception: {error_msg}")
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=error_msg)
+def generate_speech(request: TTSRequest):
+    """Generate speech from text using ElevenLabs (app.tts)."""
+    return handle_tts_request(request.text, request.voice_id)
 
-# --- Patients ---
 # --- Patients (Supabase: app.patients) ---
+
 
 @app.get("/api/patients")
 def get_patients():
@@ -619,10 +555,12 @@ def create_patient(body: CreatePatientBody):
         risk_level=body.risk_level,
     )
 
-# --- Timeline ---
+# --- Timeline (Supabase: app.timeline) ---
+
 
 @app.get("/api/timeline")
 def get_timeline(patientId: Optional[str] = None):
+<<<<<<< HEAD
     """Get timeline events for a patient or all patients"""
     try:
         events = timeline_get_timeline(patientId)
@@ -642,23 +580,27 @@ def get_timeline(patientId: Optional[str] = None):
         logger.error(f"Error getting timeline: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-# --- Alerts ---
+
+# --- Alerts (Supabase: app.alerts) ---
+
 
 @app.get("/api/alerts")
-def get_alerts(patientId: Optional[str] = None):
-    if patientId:
-        return [a for a in alerts_db if a["patientId"] == patientId]
-    return alerts_db
+def get_alerts(patientId: Optional[str] = None, doctorId: Optional[str] = None):
+    """
+    List alerts scoped by patient or doctor. Doctors only see alerts for their assigned patients.
+    Pass patientId (one patient's alerts) or doctorId (alerts for all of that doctor's patients).
+    If neither is passed, returns empty list.
+    """
+    return alerts_get_alerts(patient_id=patientId, doctor_id=doctorId)
+
 
 @app.post("/api/alerts/{alert_id}/acknowledge")
 def acknowledge_alert(alert_id: str):
-    for alert in alerts_db:
-        if alert["id"] == alert_id:
-            alert["acknowledged"] = True
-            return alert
-    raise HTTPException(status_code=404, detail="Alert not found")
+    return alerts_acknowledge_alert(alert_id)
+
 
 # --- Doctors (Supabase: app.doctors) ---
+
 
 @app.post("/api/doctors")
 def create_doctor(body: CreateDoctorBody):
@@ -692,14 +634,18 @@ def disconnect_patient_doctor(patient_id: str, doctor_id: str):
     """Remove the connection between a doctor and a patient."""
     return doctors_disconnect(patient_id, doctor_id)
 
+
 # ============== Run ==============
 
 if __name__ == "__main__":
     import uvicorn
-    print("""
+
+    print(
+        """
 CareBridge Backend
 ==================
 Server running on http://localhost:8000
 Press Ctrl+C to stop
-    """)
+    """
+    )
     uvicorn.run(app, host="0.0.0.0", port=8000)

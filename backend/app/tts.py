@@ -1,6 +1,7 @@
 import os
 import logging
-from elevenlabs import ElevenLabs
+from fastapi.responses import Response
+from elevenlabs.client import ElevenLabs
 from dotenv import load_dotenv
 
 # Configure logging
@@ -81,3 +82,12 @@ def text_to_speech(text: str, voice_id: str = None) -> bytes:
         logger.error(f"TTS Exception: {error_msg}")
         logger.error(f"Exception type: {type(e).__name__}")
         raise Exception(error_msg) from e
+
+
+def handle_tts_request(text: str, voice_id: str | None = None) -> Response:
+    """
+    Generate speech from text and return a FastAPI Response (audio/mpeg).
+    Use this from the API route so main has no ElevenLabs-specific logic.
+    """
+    audio_bytes = text_to_speech(text, voice_id)
+    return Response(content=audio_bytes, media_type="audio/mpeg")
