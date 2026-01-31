@@ -27,8 +27,8 @@ export function PatientChat() {
         </div>
       </header>
 
-      {/* Chat takes full remaining height */}
-      <main className="flex-1 max-w-3xl w-full mx-auto p-6">
+      {/* Chat takes full remaining height with wider layout for 3D model */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6">
         <div className="h-[calc(100vh-140px)]">
           <ChatComponent patientId={currentPatientId || 'demo'} />
         </div>
