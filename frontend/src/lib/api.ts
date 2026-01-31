@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = 'http://localhost:8000/api';
 
 // Generic fetch wrapper
 async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
