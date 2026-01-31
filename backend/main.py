@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from app.supabase import sign_up
 from app.doctors import (
+    create_doctor as doctors_create,
     get_my_patients as doctors_get_my_patients,
     get_patient_doctors as doctors_get_patient_doctors,
     connect_patient_doctor as doctors_connect,
@@ -166,6 +167,14 @@ class ChatRequest(BaseModel):
 
 class AlertAcknowledge(BaseModel):
     acknowledged: bool = True
+
+
+class CreateDoctorBody(BaseModel):
+    user_id: str = Field(..., alias="userId")
+    specialty: str | None = Field(None)
+
+    class Config:
+        populate_by_name = True
 
 
 class PatientDoctorLink(BaseModel):
@@ -327,7 +336,13 @@ def acknowledge_alert(alert_id: str):
             return alert
     raise HTTPException(status_code=404, detail="Alert not found")
 
-# --- Doctor–Patient Connection (Supabase: app.doctors) ---
+# --- Doctors (Supabase: app.doctors) ---
+
+@app.post("/api/doctors")
+def create_doctor(body: CreateDoctorBody):
+    """Create a doctor row (user_id = auth user id, specialty optional). Returns the created doctor."""
+    return doctors_create(body.user_id, body.specialty)
+
 
 @app.get("/api/doctors/me/patients")
 def get_my_patients(doctor_id: str):
