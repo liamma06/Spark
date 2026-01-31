@@ -5,6 +5,7 @@ import { Timeline } from "../../components/Timeline";
 import { dummyTimelineEvents } from "../../types/dummyTimeline";
 import CircleArrow from "../../components/CircleArrow";
 import Timeline2 from "../../components/Timeline2";
+import { signOut } from "../../lib/auth";
 
 export function PatientDashboard() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ export function PatientDashboard() {
   const { events, loading } = useTimeline(currentPatientId);
 
   const handleSignOut = () => {
+    signOut()
     navigate("/");
   };
 

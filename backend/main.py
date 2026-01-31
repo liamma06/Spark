@@ -190,7 +190,7 @@ def sign_in(email: str, password: str):
     return res
 
 
-@app.post("/auth/sign_out")
+@app.post("/auth/signout")
 def sign_out():
     res = auth_sign_out()
 

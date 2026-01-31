@@ -128,6 +128,12 @@ export function RegisterPage() {
             </div>
           </div>
           <RoleToggleRegister></RoleToggleRegister>
+          <a
+            className="text-primary text-sm hover:underline"
+            onClick={() => {navigate("/")}}
+          >
+            Already Registered?  Sign in
+          </a>
           <div className="text-red-400 text-sm ml-1">
             {error ? errorMessages[error] : ""}
           </div>

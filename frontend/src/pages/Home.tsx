@@ -98,13 +98,14 @@ export function Home() {
           <RoleToggle></RoleToggle>
           <a
             className="text-primary text-sm hover:underline"
-            onClick={() => {}}
+            onClick={() => {navigate("/register")}}
           >
             Register?
           </a>
           <div className="text-red-400 text-sm ml-1">
             {error ? errorMessages[error] : ""}
           </div>
+
           {/* Start Button */}
           <button
             onClick={handleStart}
