@@ -3,7 +3,8 @@ import type { Patient, Provider, UserRole } from "../types";
 export type LoginError =
   | "empty_fields"
   | "invalid_credentials"
-  | "server_error";
+  | "server_error"
+  | "incorrect_role";
 
 export async function login(
   email: string,
@@ -19,7 +20,9 @@ export async function login(
       method: "POST",
     },
   );
-
+  if (res.status === 401){
+    return {success:false, error: "incorrect_role"};
+  }
   if (!res.ok) {
     console.log("Request did not go through");
     return { success: false, error: "invalid_credentials" };

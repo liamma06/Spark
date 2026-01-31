@@ -61,7 +61,7 @@ def sign_up(email: str, password: str, full_name: str, role: str) -> dict:
             
 
 
-def sign_in(email: str, password: str) -> dict:
+def sign_in(email: str, password: str, role: str) -> dict:
     """
     Sign in an existing user with email and password
     
@@ -78,14 +78,16 @@ def sign_in(email: str, password: str) -> dict:
     })
     
     if response.user and response.session:
-        print(f"✅ Sign in successful! Welcome back!")
-        print(f"User ID: {response.user.id}")
-        print(f"Email: {response.user.email}")
-        print(f"Name: {response.user.user_metadata.get('full_name')}")
+        print(f"Sign in successful!")
         print(f"Role: {response.user.user_metadata.get('role')}")
-        print(f"Access Token: {response.session.access_token[:20]}...")
-        
-        
+        if response.user.user_metadata.get('role') != role:
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "msg":"bad role"
+                }
+            )
+
         return response.user.id
     else:
         raise Exception()

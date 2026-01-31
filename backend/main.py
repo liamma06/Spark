@@ -184,10 +184,18 @@ def doctor_sign_up(body: DoctorSignUp):
 
 #Cohere Chats 
 @app.post("/auth/signin")
-def sign_in(email: str, password: str):
-    res = auth_sign_in(email=email, password=password)
+def sign_in(email: str, password: str, role: str):
+    try:
+        res = auth_sign_in(email=email, password=password, role=role)
 
-    return res
+        return res
+    except Exception as e:
+        return JSONResponse(
+            status_code=400,
+            content={
+                'msg': 'Incorrect password'
+            }
+        )
 
 
 @app.post("/auth/signout")
