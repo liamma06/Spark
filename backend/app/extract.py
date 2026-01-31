@@ -24,16 +24,18 @@ co = cohere.ClientV2(api_key=COHERE_API_KEY)
 EXTRACTION_PROMPT = """You are a medical information extraction system. Analyze the conversation below and extract any timeline-worthy events.
 
 Extract the following types of events:
-1. **Symptoms** - When the patient mentions symptoms, especially with dates (e.g., "chest pain started on January 31, 2026")
+1. **Symptoms** - When the patient mentions symptoms, especially with dates/times (e.g., "chest pain started on January 31", "headache began yesterday", "fever since Monday")
 2. **Appointments** - When appointments are mentioned, scheduled, or missed
 3. **Medications** - When medications are mentioned, started, stopped, or changed
 4. **Alerts** - Critical health concerns that need immediate attention
 
+IMPORTANT: Extract symptoms even if they don't have explicit dates - if a patient mentions a symptom, extract it. For dates, try to infer relative dates (yesterday, last week, etc.) and convert to actual dates if possible, or use null if unclear.
+
 For each event, extract:
 - type: one of "symptom", "appointment", "medication", "alert"
-- title: A concise title (e.g., "Chest pain started", "Appointment scheduled", "Started Metformin")
-- date: The date mentioned (if any) in ISO format (YYYY-MM-DD), or null if not mentioned
-- details: Additional context as a dictionary with relevant fields
+- title: A concise title (e.g., "Chest pain started", "Headache began", "Appointment scheduled", "Started Metformin")
+- date: The date mentioned (if any) in ISO format (YYYY-MM-DD), or null if not mentioned or unclear
+- details: Additional context as a dictionary with relevant fields (description, severity, duration, location, etc.)
 
 Return ONLY valid JSON in this exact format (array of events, empty array if none found):
 [
@@ -51,7 +53,7 @@ Return ONLY valid JSON in this exact format (array of events, empty array if non
 
 If no timeline events are found, return an empty array: []
 
-Be precise - only extract events that are clearly mentioned in the conversation."""
+Be thorough - extract ALL symptoms and health events mentioned, even if dates are not explicit."""
 
 
 def extract_timeline_events(conversation_messages: list[dict]) -> list[dict]:
@@ -80,22 +82,38 @@ def extract_timeline_events(conversation_messages: list[dict]) -> list[dict]:
         
         logger.info(f"Extracting timeline events from conversation ({len(conversation_messages)} messages)")
         
-        # Make Cohere call for extraction (collect stream)
-        response = co.chat_stream(
+        # Make Cohere call for extraction (use non-streaming for better JSON extraction)
+        response = co.chat(
             model="command-r-plus-08-2024",
             messages=[
-                {"role": "system", "content": "You are a JSON extraction system. Return only valid JSON, no other text."},
+                {"role": "system", "content": "You are a JSON extraction system. Return ONLY valid JSON array, no other text, no markdown, no code blocks. Just the raw JSON array."},
                 {"role": "user", "content": full_prompt}
             ],
         )
         
-        # Collect all text chunks from the stream
-        extracted_text = ""
-        for event in response:
-            if event.type == "content-delta":
-                extracted_text += event.delta.message.content.text
-        
-        extracted_text = extracted_text.strip()
+        # Extract text from response
+        content = response.message.content
+        if isinstance(content, list):
+            # If content is a list, extract text from each item
+            text_parts = []
+            for item in content:
+                if isinstance(item, dict):
+                    text_parts.append(item.get('text', str(item)))
+                elif hasattr(item, 'text'):
+                    text_parts.append(item.text)
+                elif isinstance(item, str):
+                    text_parts.append(item)
+                else:
+                    text_parts.append(str(item))
+            extracted_text = ' '.join(text_parts).strip()
+        elif isinstance(content, dict):
+            extracted_text = content.get('text', str(content)).strip()
+        elif hasattr(content, 'text'):
+            extracted_text = content.text.strip()
+        elif isinstance(content, str):
+            extracted_text = content.strip()
+        else:
+            extracted_text = str(content).strip()
         
         # Try to parse JSON from the response
         # Cohere might return text with JSON, so try to extract just the JSON part

@@ -249,13 +249,31 @@ def _get_patient_id_from_auth(authorization: Optional[str] = None) -> Optional[s
         import jwt as pyjwt
         try:
             # Decode without verification to extract user_id
-            # The 'sub' claim contains the user ID
+            # The 'sub' claim contains the user ID (auth.users.id)
             decoded = pyjwt.decode(token, options={"verify_signature": False})
             user_id = decoded.get("sub")
             if user_id:
                 # Get patient by user_id
-                patient = patients_get_patient_by_user_id(user_id)
-                return patient["id"]
+                # Note: patients.user_id references profiles.id, which equals auth.users.id
+                try:
+                    patient = patients_get_patient_by_user_id(user_id)
+                    patient_id = patient.get("id")
+                    if patient_id:
+                        # Verify the patient ID is a valid UUID
+                        if _is_valid_uuid(patient_id):
+                            return patient_id
+                        else:
+                            logger.warning(f"Patient record has invalid UUID: {patient_id}")
+                            return None
+                    else:
+                        logger.warning(f"Patient record missing 'id' field: {patient}")
+                        return None
+                except HTTPException as e:
+                    if e.status_code == 404:
+                        logger.warning(f"No patient record found for user_id: {user_id}")
+                    else:
+                        logger.error(f"Error getting patient by user_id: {e}")
+                    return None
         except Exception as decode_error:
             logger.warning(f"Could not decode token: {decode_error}")
             return None
@@ -270,12 +288,39 @@ async def _process_timeline_events_async(
     patient_id: str,
     messages: list[dict],
     full_response: str,
-    last_message: str
+    last_message: str,
+    authorization_token: Optional[str] = None
 ):
     """Background task to extract timeline events and assess risk"""
-    # Skip timeline processing for demo/non-UUID patient IDs
+    # Resolve patient ID if it's a placeholder
+    actual_patient_id = patient_id
     if not _is_valid_uuid(patient_id):
-        logger.info(f"Skipping timeline processing for non-UUID patient_id: {patient_id}")
+        logger.info(f"Resolving placeholder patient_id: {patient_id}")
+        if authorization_token:
+            resolved_id = _get_patient_id_from_auth(authorization_token)
+            if resolved_id and _is_valid_uuid(resolved_id):
+                actual_patient_id = resolved_id
+                logger.info(f"Resolved placeholder patient_id '{patient_id}' to actual UUID: {actual_patient_id}")
+            else:
+                logger.warning(f"Could not resolve placeholder patient_id '{patient_id}' to valid UUID, skipping timeline processing")
+                return
+        else:
+            logger.warning(f"No auth token provided to resolve placeholder patient_id '{patient_id}', skipping timeline processing")
+            return
+    
+    # Verify patient exists before processing
+    try:
+        patient = patients_get_patient(actual_patient_id)
+        logger.debug(f"Verified patient exists: {actual_patient_id} (name: {patient.get('name', 'unknown')})")
+    except HTTPException as e:
+        if e.status_code == 404:
+            logger.warning(f"Patient {actual_patient_id} does not exist in database, skipping timeline processing")
+            return
+        else:
+            logger.error(f"Error verifying patient {actual_patient_id}: {e}")
+            return
+    except Exception as e:
+        logger.error(f"Unexpected error verifying patient {actual_patient_id}: {e}")
         return
     
     try:
@@ -304,7 +349,7 @@ async def _process_timeline_events_async(
                     details["date"] = event["date"]
                 
                 timeline_add_event(
-                    patient_id=patient_id,
+                    patient_id=actual_patient_id,
                     type=event["type"],
                     title=event["title"],
                     details=details
@@ -317,7 +362,7 @@ async def _process_timeline_events_async(
         if not extracted_events:
             try:
                 timeline_add_event(
-                    patient_id=patient_id,
+                    patient_id=actual_patient_id,
                     type="chat",
                     title="AI conversation",
                     details={"text": last_message[:200] + "..." if len(last_message) > 200 else last_message}
@@ -330,12 +375,12 @@ async def _process_timeline_events_async(
         if risk_level == "high":
             try:
                 alerts_create_alert(
-                    patient_id,
+                    actual_patient_id,
                     "critical",
                     f"High-risk symptoms reported: \"{last_message[:50]}...\"",
                     "Keywords indicating potentially serious symptoms were detected.",
                 )
-                patients_update_risk(patient_id, "high")
+                patients_update_risk(actual_patient_id, "high")
             except HTTPException:
                 pass
                 
@@ -344,7 +389,7 @@ async def _process_timeline_events_async(
         # Fallback: still create a basic chat event
         try:
             timeline_add_event(
-                patient_id=patient_id,
+                patient_id=actual_patient_id,
                 type="chat",
                 title="AI conversation",
                 details={"text": last_message[:200] + "..." if len(last_message) > 200 else last_message}
@@ -353,7 +398,7 @@ async def _process_timeline_events_async(
             pass
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
+async def chat(request: ChatRequest, background_tasks: BackgroundTasks, authorization: Optional[str] = Header(None, alias="Authorization")):
     """Stream chat responses from Cohere (app.cohere_chat) with async timeline processing."""
     system_prompt = get_system_prompt()
     if request.patientId:
@@ -378,12 +423,18 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
             # Schedule timeline event extraction and risk assessment as background task
             # This runs after the response is sent, so it doesn't delay the user
             if request.patientId:
+                # Extract token from authorization header if present
+                auth_token = None
+                if authorization:
+                    auth_token = authorization.replace("Bearer ", "").strip() if authorization.startswith("Bearer ") else authorization
+                
                 background_tasks.add_task(
                     _process_timeline_events_async,
                     request.patientId,
                     messages,
                     full_response,
-                    last_message
+                    last_message,
+                    auth_token
                 )
         except Exception as e:
             import traceback
