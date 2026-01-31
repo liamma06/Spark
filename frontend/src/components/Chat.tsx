@@ -24,7 +24,7 @@ function CameraFocus() {
 }
 
 export function Chat({ patientId }: ChatProps) {
-  const { messages, sendMessage, isLoading, audioUrl } = useChat(patientId);
+  const { messages, sendMessage, isLoading, audioUrl, initializeGreeting } = useChat(patientId);
   const [input, setInput] = useState('');
   const [triggerAnimation, setTriggerAnimation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -32,6 +32,15 @@ export function Chat({ patientId }: ChatProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastAudioUrl = useRef<string | null>(null);
   const [currentAudioElement, setCurrentAudioElement] = useState<HTMLAudioElement | null>(null);
+  const greetingInitialized = useRef(false);
+
+  // Initialize greeting on mount
+  useEffect(() => {
+    if (!greetingInitialized.current) {
+      greetingInitialized.current = true;
+      initializeGreeting();
+    }
+  }, [initializeGreeting]);
 
   // Auto-scroll to bottom
   useEffect(() => {

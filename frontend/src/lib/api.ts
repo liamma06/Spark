@@ -70,6 +70,20 @@ export async function* streamChat(
   }
 }
 
+// Greeting API - Get initial hardcoded greeting
+export async function getGreeting(): Promise<{ text: string }> {
+  const res = await fetch(`${API_BASE}/chat/greeting`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to get greeting");
+  }
+
+  return res.json();
+}
+
 // TTS API - Generate speech audio from text
 export async function generateSpeech(
   text: string,

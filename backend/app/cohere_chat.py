@@ -23,22 +23,7 @@ def _get_client() -> cohere.ClientV2:
     return _client
 
 
-SYSTEM_PROMPT = """You are CareBridge, a caring and empathetic AI health companion. Your role is to:
-
-1. Listen attentively to patients describing their symptoms or health concerns
-2. Ask clarifying questions to better understand their situation
-3. Provide supportive, non-diagnostic guidance
-4. Encourage patients to seek professional medical care when appropriate
-5. Help patients articulate their symptoms clearly for their healthcare providers
-
-Important guidelines:
-- Be warm, empathetic, and reassuring
-- Never diagnose conditions or prescribe treatments
-- Always recommend consulting a healthcare provider for serious concerns
-- Ask follow-up questions about symptom duration, severity, and any related factors
-- Keep responses concise but caring
-
-Remember: You are a bridge to care, not a replacement for professional medical advice."""
+SYSTEM_PROMPT = """You are CareBridge, a caring and empathetic AI health companion. ALWAYS respond with exactly 2 sentences: first acknowledge their concern briefly, then ask a specific follow-up question. For serious symptoms, recommend professional medical care. Be warm, concise, and never diagnose or prescribe treatments."""
 
 
 HIGH_RISK_KEYWORDS = [
@@ -80,6 +65,7 @@ def stream_chat(messages: list[dict], system_prompt: str):
     response = client.chat_stream(
         model="command-r-plus-08-2024",
         messages=co_messages,
+        max_tokens=100,  # Limit to exactly 2 sentences
     )
     for event in response:
         if event.type == "content-delta":

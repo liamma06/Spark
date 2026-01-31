@@ -213,6 +213,12 @@ def get_current_user():
 
 # --- Chat ---
 
+@app.get("/api/chat/greeting")
+def get_greeting():
+    """Return a hardcoded initial greeting from the doctor."""
+    greeting_text = "Hello! How can I help you today?"
+    return {"text": greeting_text}
+
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
