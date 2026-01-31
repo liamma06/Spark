@@ -1,16 +1,18 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "../stores/appStore";
-import { RoleToggle } from "../components/RoleToggle";
+import { RoleToggleRegister } from "../components/RoleToggle";
 import { login } from "../lib/auth";
 import type { LoginError } from "../lib/auth";
+import { PatientRegisterModal } from "../components/PatientRegisterModal";
 
-export function Home() {
+export function RegisterPage() {
   const navigate = useNavigate();
   const { role } = useAppStore();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [modal, setModal] = useState(false);
   const [error, setError] = useState<LoginError | null>(null);
 
   const errorMessages: Record<LoginError, string> = {
@@ -20,19 +22,9 @@ export function Home() {
   };
 
   const handleStart = async () => {
+    setModal(true);
     setError(null);
     setLoading(true);
-    const res = await login(username, password);
-    setLoading(false);
-    if (res.success) {
-      if (role === "patient") {
-        navigate("/patient");
-      } else {
-        navigate("/provider");
-      }
-    } else if (res.error) {
-      setError(res.error);
-    }
   };
 
   const handleInputChange = () => {
@@ -59,7 +51,7 @@ export function Home() {
         {/* Card */}
         <div className="bg-white rounded-2xl p-8">
           <h1 className="font-medium text-[1.7em] pb-5">
-            {role == "patient" ? "Patient" : "Provider"} Sign In
+            {role == "patient" ? "Patient" : "Provider"} Registration
           </h1>
 
           {/* Login Inputs */}
@@ -95,7 +87,7 @@ export function Home() {
               />
             </div>
           </div>
-          <RoleToggle></RoleToggle>
+          <RoleToggleRegister></RoleToggleRegister>
           <div className="text-red-400 text-sm ml-1">
             {error ? errorMessages[error] : ""}
           </div>
@@ -120,7 +112,7 @@ export function Home() {
                 />
               </svg>
             ) : (
-              `Continue as ${role === "patient" ? "Patient" : "Provider"}`
+              `Register as ${role === "patient" ? "Patient" : "Provider"}`
             )}
           </button>
         </div>
@@ -130,6 +122,13 @@ export function Home() {
           Demo mode - no login required
         </p>
       </div>
+      <PatientRegisterModal
+        isOpen={modal}
+        onClose={() => {
+          setModal(false);
+        }}
+        onSubmit={() => {}}
+      ></PatientRegisterModal>
     </div>
   );
 }

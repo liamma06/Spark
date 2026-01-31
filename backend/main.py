@@ -1,53 +1,42 @@
-import os
 import json
 import logging
+import os
 import traceback
-import cohere
 from datetime import datetime
 from typing import Optional
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi.responses import StreamingResponse, Response, JSONRespone
-from pydantic import BaseModel
-from dotenv import load_dotenv
+import cohere
 from app.supabase import sign_up
 from app.tts import text_to_speech
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, Response, StreamingResponse
+from pydantic import BaseModel
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+from app.alerts import acknowledge_alert as alerts_acknowledge_alert
+from app.alerts import create_alert as alerts_create_alert
+from app.alerts import get_alerts as alerts_get_alerts
+from app.doctors import connect_patient_doctor as doctors_connect
+from app.doctors import create_doctor as doctors_create
+from app.doctors import disconnect_patient_doctor as doctors_disconnect
+from app.doctors import get_my_patients as doctors_get_my_patients
+from app.doctors import get_patient_doctors as doctors_get_patient_doctors
+from app.patients import create_patient as patients_create
+from app.patients import get_patient as patients_get_patient
+from app.patients import get_patients as patients_get_patients
+from app.patients import update_patient_risk as patients_update_risk
+from app.supabase import get_current_user as auth_get_current_user
+from app.supabase import sign_in as auth_sign_in
+from app.supabase import sign_out as auth_sign_out
+from app.supabase import sign_up as auth_sign_up
+from app.timeline import get_timeline as timeline_get_timeline
+from dotenv import load_dotenv
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from dotenv import load_dotenv
-from app.supabase import (
-    sign_up as auth_sign_up,
-    sign_in as auth_sign_in,
-    sign_out as auth_sign_out,
-    get_current_user as auth_get_current_user,
-)
-from app.doctors import (
-    create_doctor as doctors_create,
-    get_my_patients as doctors_get_my_patients,
-    get_patient_doctors as doctors_get_patient_doctors,
-    connect_patient_doctor as doctors_connect,
-    disconnect_patient_doctor as doctors_disconnect,
-)
-from app.patients import (
-    get_patients as patients_get_patients,
-    get_patient as patients_get_patient,
-    create_patient as patients_create,
-    update_patient_risk as patients_update_risk,
-)
-from app.alerts import (
-    get_alerts as alerts_get_alerts,
-    acknowledge_alert as alerts_acknowledge_alert,
-    create_alert as alerts_create_alert,
-)
-
-from app.timeline import (
-    get_timeline as timeline_get_timeline
-)
 
 # Load environment variables
 load_dotenv()
@@ -76,16 +65,40 @@ timeline_db = []
 # ============== Risk Assessment ==============
 
 HIGH_RISK_KEYWORDS = [
-    "chest pain", "chest tightness", "difficulty breathing", "can't breathe",
-    "severe pain", "unconscious", "fainted", "bleeding heavily", "suicidal",
-    "want to die", "heart attack", "stroke", "seizure", "numbness"
+    "chest pain",
+    "chest tightness",
+    "difficulty breathing",
+    "can't breathe",
+    "severe pain",
+    "unconscious",
+    "fainted",
+    "bleeding heavily",
+    "suicidal",
+    "want to die",
+    "heart attack",
+    "stroke",
+    "seizure",
+    "numbness",
 ]
 
 MEDIUM_RISK_KEYWORDS = [
-    "fever", "persistent", "worsening", "dizzy", "nausea", "vomiting",
-    "can't sleep", "insomnia", "anxiety", "anxious", "depressed",
-    "shortness of breath", "headache", "migraine", "palpitations"
+    "fever",
+    "persistent",
+    "worsening",
+    "dizzy",
+    "nausea",
+    "vomiting",
+    "can't sleep",
+    "insomnia",
+    "anxiety",
+    "anxious",
+    "depressed",
+    "shortness of breath",
+    "headache",
+    "migraine",
+    "palpitations",
 ]
+
 
 def assess_risk(message: str) -> str:
     lower = message.lower()
@@ -95,22 +108,28 @@ def assess_risk(message: str) -> str:
         return "medium"
     return "low"
 
+
 # ============== Pydantic Models ==============
+
 
 class ChatMessage(BaseModel):
     role: str
     content: str
 
+
 class ChatRequest(BaseModel):
     messages: list[ChatMessage]
     patientId: Optional[str] = None
 
+
 class AlertAcknowledge(BaseModel):
     acknowledged: bool = True
+
 
 class TTSRequest(BaseModel):
     text: str
     voice_id: Optional[str] = None
+
 
 class CreateDoctorBody(BaseModel):
     user_id: str = Field(..., alias="userId")
@@ -162,29 +181,36 @@ Remember: You are a bridge to care, not a replacement for professional medical a
 
 # ============== Routes ==============
 
+
 @app.get("/")
 def home():
     return {"status": "hello world"}
 
+
 def read_root():
     return {"status": "ok", "message": "CareBridge API is running"}
+
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
 
+
 # --- Auth (Supabase) ---
+
 
 @app.post("/auth/signup")
 def read_root(email: str, password: str, full_name: str, role: str):
     result = auth_sign_up(email, password, full_name, role)
     return result
 
+
 @app.post("/auth/signin")
 def sign_in(email: str, password: str):
     res = auth_sign_in(email=email, password=password)
-    
+
     return res
+
 
 @app.post("/auth/sign_out")
 def sign_out():
@@ -192,17 +218,20 @@ def sign_out():
 
     return res
 
+
 @app.get("/auth/getuser")
 def get_current_user():
     res = auth_get_current_user()
     return res
-    
+
+
 # --- Chat ---
+
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
     """Stream chat responses from Cohere"""
-    
+
     # Add patient context to system prompt (from Supabase)
     system_prompt = SYSTEM_PROMPT
     if request.patientId:
@@ -213,18 +242,15 @@ async def chat(request: ChatRequest):
             system_prompt += f"\n\nPatient context: {patient['name']}, {patient['age']} years old. Known conditions: {conditions}."
         except HTTPException:
             pass  # skip patient context if not found
-    
+
     # Build messages for Cohere v2 API
     cohere_messages = [{"role": "system", "content": system_prompt}]
     for msg in request.messages:
-        cohere_messages.append({
-            "role": msg.role,
-            "content": msg.content
-        })
-    
+        cohere_messages.append({"role": msg.role, "content": msg.content})
+
     # Get the last user message for risk assessment
     last_message = request.messages[-1].content if request.messages else ""
-    
+
     async def generate():
         try:
             # Use Cohere v2 chat with streaming
@@ -232,73 +258,84 @@ async def chat(request: ChatRequest):
                 model="command-r-plus-08-2024",
                 messages=cohere_messages,
             )
-            
+
             full_response = ""
             for event in response:
                 if event.type == "content-delta":
                     text = event.delta.message.content.text
                     full_response += text
                     yield text
-            
+
             # After streaming, assess risk and create alerts if needed
             if request.patientId:
                 risk_level = assess_risk(last_message)
                 if risk_level == "high":
                     # Create alert (still in-memory for now; timeline/alerts modules later)
                     alert_id = f"alert-{len(alerts_db) + 1}"
-                    alerts_db.append({
-                        "id": alert_id,
-                        "patientId": request.patientId,
-                        "severity": "critical",
-                        "message": f"High-risk symptoms reported: \"{last_message[:50]}...\"",
-                        "reasoning": "Keywords indicating potentially serious symptoms were detected.",
-                        "acknowledged": False,
-                        "createdAt": datetime.now().isoformat(),
-                    })
+                    alerts_db.append(
+                        {
+                            "id": alert_id,
+                            "patientId": request.patientId,
+                            "severity": "critical",
+                            "message": f'High-risk symptoms reported: "{last_message[:50]}..."',
+                            "reasoning": "Keywords indicating potentially serious symptoms were detected.",
+                            "acknowledged": False,
+                            "createdAt": datetime.now().isoformat(),
+                        }
+                    )
                     # Update patient risk level in Supabase
                     try:
                         patients_update_risk(request.patientId, "high")
                     except HTTPException:
                         pass
-                
+
                 # Add to timeline (in-memory for now)
-                details = last_message[:100] + "..." if len(last_message) > 100 else last_message
-                timeline_db.append({
-                    "id": f"evt-{len(timeline_db) + 1}",
-                    "patientId": request.patientId,
-                    "type": "chat",
-                    "title": "AI conversation",
-                    "details": details,
-                    "createdAt": datetime.now().isoformat(),
-                })
+                details = (
+                    last_message[:100] + "..."
+                    if len(last_message) > 100
+                    else last_message
+                )
+                timeline_db.append(
+                    {
+                        "id": f"evt-{len(timeline_db) + 1}",
+                        "patientId": request.patientId,
+                        "type": "chat",
+                        "title": "AI conversation",
+                        "details": details,
+                        "createdAt": datetime.now().isoformat(),
+                    }
+                )
         except Exception as e:
             import traceback
+
             traceback.print_exc()
             yield f"I'm sorry, I encountered an error: {str(e)}"
-    
+
     return StreamingResponse(generate(), media_type="text/plain")
 
+
 # --- Text-to-Speech ---
+
 
 @app.post("/api/tts")
 async def generate_speech(request: TTSRequest):
     """Generate speech audio from text using ElevenLabs"""
     try:
-        logger.info(f"TTS request received - text length: {len(request.text)}, voice_id: {request.voice_id or 'default'}")
-        
+        logger.info(
+            f"TTS request received - text length: {len(request.text)}, voice_id: {request.voice_id or 'default'}"
+        )
+
         if not request.text or not request.text.strip():
             raise ValueError("Text cannot be empty")
-        
+
         audio_bytes = text_to_speech(request.text, request.voice_id)
-        
+
         logger.info(f"TTS generation successful - audio size: {len(audio_bytes)} bytes")
-        
+
         return Response(
             content=audio_bytes,
             media_type="audio/mpeg",
-            headers={
-                "Content-Disposition": "inline; filename=speech.mp3"
-            }
+            headers={"Content-Disposition": "inline; filename=speech.mp3"},
         )
     except ValueError as e:
         error_msg = str(e)
@@ -311,8 +348,10 @@ async def generate_speech(request: TTSRequest):
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=error_msg)
 
+
 # --- Patients ---
 # --- Patients (Supabase: app.patients) ---
+
 
 @app.get("/api/patients")
 def get_patients():
@@ -337,7 +376,9 @@ def create_patient(body: CreatePatientBody):
         risk_level=body.risk_level,
     )
 
+
 # --- Timeline (in-memory for now) ---
+
 
 @app.get("/api/timeline")
 def timeline(patientId: Optional[str] = None):
@@ -345,11 +386,14 @@ def timeline(patientId: Optional[str] = None):
         return [e for e in timeline_db if e["patientId"] == patientId]
     return timeline_db
 
+
 @app.get("/api/get_timeline")
 def get_timeline():
     timeline_get_timeline("thing")
 
+
 # --- Alerts (Supabase: app.alerts) ---
+
 
 @app.get("/api/alerts")
 def get_alerts(patientId: Optional[str] = None, doctorId: Optional[str] = None):
@@ -360,11 +404,14 @@ def get_alerts(patientId: Optional[str] = None, doctorId: Optional[str] = None):
     """
     return alerts_get_alerts(patient_id=patientId, doctor_id=doctorId)
 
+
 @app.post("/api/alerts/{alert_id}/acknowledge")
 def acknowledge_alert(alert_id: str):
     return alerts_acknowledge_alert(alert_id)
 
+
 # --- Doctors (Supabase: app.doctors) ---
+
 
 @app.post("/api/doctors")
 def create_doctor(body: CreateDoctorBody):
@@ -398,14 +445,18 @@ def disconnect_patient_doctor(patient_id: str, doctor_id: str):
     """Remove the connection between a doctor and a patient."""
     return doctors_disconnect(patient_id, doctor_id)
 
+
 # ============== Run ==============
 
 if __name__ == "__main__":
     import uvicorn
-    print("""
+
+    print(
+        """
 CareBridge Backend
 ==================
 Server running on http://localhost:8000
 Press Ctrl+C to stop
-    """)
+    """
+    )
     uvicorn.run(app, host="0.0.0.0", port=8000)
