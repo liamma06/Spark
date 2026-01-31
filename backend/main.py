@@ -3,7 +3,7 @@ import os
 import uuid
 from datetime import datetime
 from typing import Optional
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response, JSONResponse
 from pydantic import BaseModel, Field
@@ -210,7 +210,6 @@ def doctor_sign_up(body: DoctorSignUp):
 @app.post("/auth/signin")
 def sign_in(email: str, password: str):
     res = auth_sign_in(email=email, password=password)
-
     return res
 
 
@@ -235,6 +234,36 @@ def _is_valid_uuid(value: str) -> bool:
         return True
     except (ValueError, AttributeError):
         return False
+
+
+def _get_patient_id_from_auth(authorization: Optional[str] = None) -> Optional[str]:
+    """Get patient ID from authorization token by decoding JWT and extracting user_id"""
+    if not authorization:
+        return None
+    
+    try:
+        # Extract token from "Bearer <token>" format
+        token = authorization.replace("Bearer ", "").strip() if authorization.startswith("Bearer ") else authorization
+        
+        # Decode the JWT token to extract user_id (sub claim)
+        import jwt as pyjwt
+        try:
+            # Decode without verification to extract user_id
+            # The 'sub' claim contains the user ID
+            decoded = pyjwt.decode(token, options={"verify_signature": False})
+            user_id = decoded.get("sub")
+            if user_id:
+                # Get patient by user_id
+                patient = patients_get_patient_by_user_id(user_id)
+                return patient["id"]
+        except Exception as decode_error:
+            logger.warning(f"Could not decode token: {decode_error}")
+            return None
+    except Exception as e:
+        logger.warning(f"Could not get patient ID from auth token: {e}")
+        return None
+    
+    return None
 
 
 async def _process_timeline_events_async(
@@ -438,7 +467,7 @@ async def generate_chat_summary(request: ChatSummaryRequest):
 # --- Chat Close ---
 
 @app.post("/api/chat/close", response_model=ChatCloseResponse)
-async def close_chat(request: ChatCloseRequest):
+async def close_chat(request: ChatCloseRequest, authorization: Optional[str] = Header(None, alias="Authorization")):
     """Generate closing message and summary, then store summary in timeline"""
     try:
         # Generate closing message using Cohere
@@ -503,13 +532,25 @@ Keep it brief (2-3 sentences) and warm."""
         # Store summary in timeline if patientId is provided
         if request.patientId:
             try:
+                # Resolve patient ID if it's a placeholder
+                actual_patient_id = request.patientId
+                if not _is_valid_uuid(actual_patient_id):
+                    resolved_id = _get_patient_id_from_auth(authorization)
+                    if resolved_id:
+                        actual_patient_id = resolved_id
+                        logger.info(f"Resolved placeholder patientId '{request.patientId}' to actual UUID: {actual_patient_id}")
+                    else:
+                        logger.warning(f"Could not resolve placeholder patientId '{request.patientId}', skipping timeline storage")
+                        # Continue without storing if we can't resolve
+                        return ChatCloseResponse(closingMessage=closing_message, summary=summary)
+                
                 timeline_add_event(
-                    patient_id=request.patientId,
+                    patient_id=actual_patient_id,
                     type="chat",
                     title="Chat session summary",
                     details={"summary": summary, "closing_message": closing_message}
                 )
-                logger.info(f"Stored chat summary for patient: {request.patientId}")
+                logger.info(f"Stored chat summary for patient: {actual_patient_id}")
             except Exception as e:
                 logger.error(f"Failed to store chat summary in timeline: {e}", exc_info=True)
                 # Continue even if storage fails
@@ -556,26 +597,29 @@ def create_patient(body: CreatePatientBody):
 
 
 @app.get("/api/timeline")
-def get_timeline(patientId: Optional[str] = None):
+def get_timeline(patientId: Optional[str] = None, authorization: Optional[str] = Header(None, alias="Authorization")):
     """Get timeline events for a patient or all patients"""
     try:
-        # If patientId is provided but not a valid UUID, try to get it from current user
         actual_patient_id = patientId
+        
+        # If patientId is provided but not a valid UUID, try to get it from current user
         if patientId and not _is_valid_uuid(patientId):
-            # Try to get patient ID from current user
-            try:
-                current_user = auth_get_current_user()
-                if current_user.get("success") and current_user.get("user"):
-                    user_id = current_user["user"]["id"]
-                    patient = patients_get_patient_by_user_id(user_id)
-                    actual_patient_id = patient["id"]
-                    logger.info(f"Resolved placeholder patientId '{patientId}' to actual UUID: {actual_patient_id}")
-                else:
-                    # If no user or can't get patient, return empty list for placeholder IDs
-                    logger.warning(f"Could not resolve placeholder patientId '{patientId}', returning empty timeline")
-                    return []
-            except Exception as e:
-                logger.warning(f"Could not get patient ID from current user: {e}, returning empty timeline")
+            # Try to get patient ID from auth token
+            resolved_id = _get_patient_id_from_auth(authorization)
+            if resolved_id:
+                actual_patient_id = resolved_id
+                logger.info(f"Resolved placeholder patientId '{patientId}' to actual UUID: {actual_patient_id}")
+            else:
+                logger.warning(f"Could not resolve placeholder patientId '{patientId}', returning empty timeline")
+                return []
+        elif not patientId:
+            # No patientId provided, try to get from current user
+            resolved_id = _get_patient_id_from_auth(authorization)
+            if resolved_id:
+                actual_patient_id = resolved_id
+                logger.info(f"Got patient ID from current user: {actual_patient_id}")
+            else:
+                logger.warning("No patientId provided and could not get from auth, returning empty timeline")
                 return []
         
         events = timeline_get_timeline(actual_patient_id)

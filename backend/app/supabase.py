@@ -86,7 +86,11 @@ def sign_in(email: str, password: str) -> dict:
         print(f"Access Token: {response.session.access_token[:20]}...")
         
         
-        return response.user.id
+        return {
+            "user_id": response.user.id,
+            "access_token": response.session.access_token,
+            "user": response.user
+        }
     else:
         raise Exception()
         

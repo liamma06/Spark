@@ -1,14 +1,28 @@
 const API_BASE = "http://localhost:8000/api";
 
+// Get auth token from localStorage
+function getAuthToken(): string | null {
+  // Get token stored by signin
+  return localStorage.getItem('auth_token');
+}
+
 // Generic fetch wrapper
 async function apiFetch<T>(
   endpoint: string,
   options?: RequestInit,
 ): Promise<T> {
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  
+  // Add auth token if available
+  const token = getAuthToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  
   const res = await fetch(`${API_BASE}${endpoint}`, {
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers,
     ...options,
   });
 
@@ -28,10 +42,22 @@ export const patientsApi = {
 
 // Timeline API
 export const timelineApi = {
-  getByPatient: (patientId: string) =>
-    apiFetch<import("../types").TimelineEvent[]>(
-      `/timeline?patientId=${patientId}`,
-    ),
+  getByPatient: (patientId: string) => {
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    const token = getAuthToken();
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    
+    return fetch(`${API_BASE}/timeline?patientId=${patientId}`, {
+      headers,
+    }).then(res => {
+      if (!res.ok) {
+        throw new Error(`API error: ${res.status}`);
+      }
+      return res.json();
+    }) as Promise<import("../types").TimelineEvent[]>;
+  },
 };
 
 // Alerts API
@@ -50,9 +76,15 @@ export async function* streamChat(
   messages: { role: string; content: string }[],
   patientId: string,
 ): AsyncGenerator<string> {
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+  const token = getAuthToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  
   const res = await fetch(`${API_BASE}/chat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ messages, patientId }),
   });
 
@@ -75,9 +107,15 @@ export async function generateChatSummary(
   messages: { role: string; content: string }[],
   patientId: string
 ): Promise<{ summary: string }> {
+  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+  const token = getAuthToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  
   const res = await fetch(`${API_BASE}/chat/summary`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ messages, patientId }),
   });
 
@@ -93,9 +131,15 @@ export async function closeChat(
   messages: { role: string; content: string }[],
   patientId: string
 ): Promise<{ closingMessage: string; summary: string }> {
+  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+  const token = getAuthToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  
   const res = await fetch(`${API_BASE}/chat/close`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ messages, patientId }),
   });
 

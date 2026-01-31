@@ -25,6 +25,12 @@ export async function login(
   }
   const body = await res.json();
   console.log(body);
+  
+  // Store access token if provided
+  if (body.access_token) {
+    localStorage.setItem('auth_token', body.access_token);
+  }
+  
   return { success: true };
 }
 export async function registerPatient(
