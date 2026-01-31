@@ -37,16 +37,18 @@ export function Chat({ patientId }: ChatProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Trigger animation when AI starts responding (once per new assistant message)
+  // Trigger animation when message is ready (after TTS completes)
+  // Since we now buffer the response until TTS is ready, this will trigger
+  // when both chat and TTS are complete, ensuring synchronization
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
     if (
       lastMessage &&
       lastMessage.role === 'assistant' &&
       lastMessage.id !== lastAssistantMessageId.current &&
-      lastMessage.content.length > 0 // Trigger when content first appears
+      lastMessage.content.length > 0 // Message is ready (TTS has completed)
     ) {
-      console.log('Triggering animation for message:', lastMessage.id);
+      console.log('Triggering animation for message (after TTS ready):', lastMessage.id);
       lastAssistantMessageId.current = lastMessage.id;
       // Reset trigger first, then set to true to ensure the change is detected
       setTriggerAnimation(false);

@@ -51,11 +51,14 @@ def text_to_speech(text: str, voice_id: str = None) -> bytes:
         client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
         
         # Generate audio from text
-        logger.debug(f"Calling ElevenLabs API with model: eleven_multilingual_v2")
+        # Using eleven_turbo_v2 for faster generation (lower latency)
+        # Alternative: "eleven_flash_v2" for even faster but lower quality
+        # "eleven_multilingual_v2" for best quality but slower
+        logger.debug(f"Calling ElevenLabs API with model: eleven_turbo_v2")
         audio = client.text_to_speech.convert(
             voice_id=voice_id,
             text=text,
-            model_id="eleven_multilingual_v2"  # Supports multiple languages
+            model_id="eleven_turbo_v2"  # Faster model for lower latency
         )
         
         # Read audio bytes
