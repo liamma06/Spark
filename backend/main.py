@@ -25,6 +25,7 @@ from app.doctors import (
 from app.patients import (
     get_patients as patients_get_patients,
     get_patient as patients_get_patient,
+    search_patients_by_name as patients_search_by_name,
     create_patient as patients_create,
     update_patient_risk as patients_update_risk,
 )
@@ -265,6 +266,12 @@ def generate_speech(request: TTSRequest):
 def get_patients():
     """List all patients from Supabase."""
     return patients_get_patients()
+
+
+@app.get("/api/patients/search")
+def search_patients(name: Optional[str] = None):
+    """Search patients by name (partial, case-insensitive). Returns all matching patients."""
+    return patients_search_by_name(name or "")
 
 
 @app.get("/api/patients/{patient_id}")
