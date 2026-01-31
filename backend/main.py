@@ -16,6 +16,12 @@ from app.doctors import (
     connect_patient_doctor as doctors_connect,
     disconnect_patient_doctor as doctors_disconnect,
 )
+from app.patients import (
+    get_patients as patients_get_patients,
+    get_patient as patients_get_patient,
+    create_patient as patients_create,
+    update_patient_risk as patients_update_risk,
+)
 
 # Load environment variables
 load_dotenv()
@@ -38,34 +44,6 @@ app.add_middleware(
 )
 
 # ============== In-Memory Data Store ==============
-
-# Demo patients
-patients_db = {
-    "patient-maria": {
-        "id": "patient-maria",
-        "name": "Maria Rodriguez",
-        "age": 67,
-        "conditions": ["Type 2 Diabetes", "Hypertension"],
-        "riskLevel": "high",
-        "createdAt": datetime.now().isoformat(),
-    },
-    "patient-james": {
-        "id": "patient-james",
-        "name": "James Chen",
-        "age": 34,
-        "conditions": ["Generalized Anxiety Disorder"],
-        "riskLevel": "medium",
-        "createdAt": datetime.now().isoformat(),
-    },
-    "patient-sarah": {
-        "id": "patient-sarah",
-        "name": "Sarah Thompson",
-        "age": 28,
-        "conditions": [],
-        "riskLevel": "low",
-        "createdAt": datetime.now().isoformat(),
-    },
-}
 
 # Timeline events
 timeline_db = [
@@ -177,6 +155,17 @@ class CreateDoctorBody(BaseModel):
         populate_by_name = True
 
 
+class CreatePatientBody(BaseModel):
+    user_id: str | None = Field(None, alias="userId")
+    name: str = Field(...)
+    age: int = Field(...)
+    conditions: list[str] = Field(default_factory=list)
+    risk_level: str = Field("low", alias="riskLevel")
+
+    class Config:
+        populate_by_name = True
+
+
 class PatientDoctorLink(BaseModel):
     patient_id: str = Field(..., alias="patientId")
     doctor_id: str = Field(..., alias="doctorId")
@@ -230,12 +219,16 @@ def read_root(email: str, password: str, full_name: str, role: str):
 async def chat(request: ChatRequest):
     """Stream chat responses from Cohere"""
     
-    # Add patient context to system prompt
+    # Add patient context to system prompt (from Supabase)
     system_prompt = SYSTEM_PROMPT
-    if request.patientId and request.patientId in patients_db:
-        patient = patients_db[request.patientId]
-        conditions = ", ".join(patient["conditions"]) if patient["conditions"] else "None reported"
-        system_prompt += f"\n\nPatient context: {patient['name']}, {patient['age']} years old. Known conditions: {conditions}."
+    if request.patientId:
+        try:
+            patient = patients_get_patient(request.patientId)
+            conds = patient.get("conditions") or []
+            conditions = ", ".join(conds) if conds else "None reported"
+            system_prompt += f"\n\nPatient context: {patient['name']}, {patient['age']} years old. Known conditions: {conditions}."
+        except HTTPException:
+            pass  # skip patient context if not found
     
     # Build messages for Cohere v2 API
     cohere_messages = [{"role": "system", "content": system_prompt}]
@@ -267,7 +260,7 @@ async def chat(request: ChatRequest):
             if request.patientId:
                 risk_level = assess_risk(last_message)
                 if risk_level == "high":
-                    # Create alert
+                    # Create alert (still in-memory for now; timeline/alerts modules later)
                     alert_id = f"alert-{len(alerts_db) + 1}"
                     alerts_db.append({
                         "id": alert_id,
@@ -278,9 +271,11 @@ async def chat(request: ChatRequest):
                         "acknowledged": False,
                         "createdAt": datetime.now().isoformat(),
                     })
-                    # Update patient risk level
-                    if request.patientId in patients_db:
-                        patients_db[request.patientId]["riskLevel"] = "high"
+                    # Update patient risk level in Supabase
+                    try:
+                        patients_update_risk(request.patientId, "high")
+                    except HTTPException:
+                        pass
                 
                 # Add to timeline
                 event_id = f"evt-{len(timeline_db) + 1}"
@@ -300,17 +295,30 @@ async def chat(request: ChatRequest):
     
     return StreamingResponse(generate(), media_type="text/plain")
 
-# --- Patients ---
+# --- Patients (Supabase: app.patients) ---
 
 @app.get("/api/patients")
 def get_patients():
-    return list(patients_db.values())
+    """List all patients from Supabase."""
+    return patients_get_patients()
+
 
 @app.get("/api/patients/{patient_id}")
 def get_patient(patient_id: str):
-    if patient_id not in patients_db:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    return patients_db[patient_id]
+    """Get one patient by id from Supabase."""
+    return patients_get_patient(patient_id)
+
+
+@app.post("/api/patients")
+def create_patient(body: CreatePatientBody):
+    """Create a patient row in Supabase. Returns the created patient."""
+    return patients_create(
+        name=body.name,
+        age=body.age,
+        user_id=body.user_id,
+        conditions=body.conditions,
+        risk_level=body.risk_level,
+    )
 
 # --- Timeline ---
 
