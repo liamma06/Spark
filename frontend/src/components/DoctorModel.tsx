@@ -3,26 +3,66 @@ import { useFrame } from '@react-three/fiber';
 import { useGLTF, useAnimations } from '@react-three/drei';
 import * as THREE from 'three';
 
+import { useAudioAnalysis } from '../hooks/useAudioAnalysis';
+
 interface DoctorModelProps {
   playAnimation?: boolean;
   onAnimationComplete?: () => void;
+  audioElement?: HTMLAudioElement | null;
 }
 
-export function DoctorModel({ playAnimation, onAnimationComplete }: DoctorModelProps) {
+export function DoctorModel({ playAnimation, onAnimationComplete, audioElement }: DoctorModelProps) {
   const group = useRef<THREE.Group>(null);
   const [previousPlayState, setPreviousPlayState] = useState(false);
   const idleActionRef = useRef<THREE.AnimationAction | null>(null);
   const talkingActionRef = useRef<THREE.AnimationAction | null>(null);
+  const jawBoneRef = useRef<THREE.Bone | null>(null);
+  const originalJawRotationRef = useRef<THREE.Euler | null>(null);
   
   // Use DoctorM.glb (male doctor) - you can change to DoctorF.glb if preferred
   // Use scene directly from useGLTF - do NOT clone as it breaks animations
   const { scene, animations } = useGLTF('/DoctorM.glb');
   
   const { actions, mixer } = useAnimations(animations || [], group);
+  
+  // Analyze audio for lip sync
+  const audioAmplitude = useAudioAnalysis(audioElement || null);
 
   // Get all available animation names - use animations array as source of truth
   const animationNames = animations?.map(clip => clip.name) || [];
   
+  // Find jaw bone in the scene and store original rotation
+  useEffect(() => {
+    if (!scene) return;
+    
+    scene.traverse((child) => {
+      if (child instanceof THREE.Bone && child.name.toLowerCase() === 'jaw') {
+        jawBoneRef.current = child;
+        // Store original rotation to preserve animation-based rotation
+        originalJawRotationRef.current = new THREE.Euler(
+          child.rotation.x,
+          child.rotation.y,
+          child.rotation.z
+        );
+        console.log('✅ Jaw bone found:', child.name, 'Original rotation:', {
+          x: child.rotation.x,
+          y: child.rotation.y,
+          z: child.rotation.z
+        });
+      }
+    });
+    
+    if (!jawBoneRef.current) {
+      console.warn('⚠️ Jaw bone not found. Make sure the bone is named "jaw" in the model.');
+      // Try to find it with different case variations
+      scene.traverse((child) => {
+        if (child instanceof THREE.Bone) {
+          console.log('Available bone:', child.name);
+        }
+      });
+    }
+  }, [scene]);
+
   // Proper material setup and model configuration - runs after scene loads
   useEffect(() => {
     if (!scene) return;
@@ -221,6 +261,39 @@ export function DoctorModel({ playAnimation, onAnimationComplete }: DoctorModelP
       idleActionRef.current.reset();
       idleActionRef.current.setLoop(THREE.LoopRepeat, Infinity);
       idleActionRef.current.play();
+    }
+  });
+
+  // Animate jaw bone based on audio amplitude
+  useFrame(() => {
+    if (jawBoneRef.current && originalJawRotationRef.current) {
+      // Debug: Log amplitude occasionally
+      if (Math.random() < 0.01) { // Log ~1% of frames
+        console.log('Audio amplitude:', audioAmplitude.toFixed(3), 
+                   'Jaw rotation:', jawBoneRef.current.rotation.x.toFixed(3));
+      }
+      
+      if (audioAmplitude > 0) {
+        // Rotate jaw down (open) based on audio amplitude
+        // Add to original rotation to preserve any animation-based rotation
+        const maxRotation = 1.2; // Maximum jaw opening in radians (increased significantly for visible movement)
+        const jawRotation = audioAmplitude * maxRotation;
+        
+        // Add rotation to original (preserves animation, adds lip sync)
+        // Try X-axis first (most common for jaw opening downward)
+        jawBoneRef.current.rotation.x = originalJawRotationRef.current.x + jawRotation;
+        
+        // If X doesn't work, try these:
+        // jawBoneRef.current.rotation.y = originalJawRotationRef.current.y + jawRotation;
+        // jawBoneRef.current.rotation.z = originalJawRotationRef.current.z + jawRotation;
+      } else {
+        // Reset to original rotation when no audio
+        if (originalJawRotationRef.current) {
+          jawBoneRef.current.rotation.x = originalJawRotationRef.current.x;
+          jawBoneRef.current.rotation.y = originalJawRotationRef.current.y;
+          jawBoneRef.current.rotation.z = originalJawRotationRef.current.z;
+        }
+      }
     }
   });
 

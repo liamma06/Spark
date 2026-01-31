@@ -31,6 +31,7 @@ export function Chat({ patientId }: ChatProps) {
   const lastAssistantMessageId = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastAudioUrl = useRef<string | null>(null);
+  const [currentAudioElement, setCurrentAudioElement] = useState<HTMLAudioElement | null>(null);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -73,14 +74,24 @@ export function Chat({ patientId }: ChatProps) {
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
       
-      audio.play().catch((error) => {
-        console.error('Failed to play audio:', error);
-      });
+      // Set up audio element before playing (important for Web Audio API)
+      audio.crossOrigin = 'anonymous'; // Allow CORS for audio analysis
+      
+      // Update state BEFORE playing so audio analysis can connect
+      setCurrentAudioElement(audio);
+      
+      // Small delay to ensure state update and audio analysis setup
+      setTimeout(() => {
+        audio.play().catch((error) => {
+          console.error('Failed to play audio:', error);
+        });
+      }, 100);
       
       // Clean up when audio finishes
       audio.addEventListener('ended', () => {
         if (audioRef.current === audio) {
           audioRef.current = null;
+          setCurrentAudioElement(null); // Clear state when audio ends
         }
         URL.revokeObjectURL(audioUrl);
       });
@@ -91,6 +102,7 @@ export function Chat({ patientId }: ChatProps) {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
+        setCurrentAudioElement(null);
       }
     };
   }, [audioUrl]);
@@ -121,6 +133,7 @@ export function Chat({ patientId }: ChatProps) {
           <DoctorModel 
             playAnimation={triggerAnimation} 
             onAnimationComplete={handleAnimationComplete}
+            audioElement={currentAudioElement}
           />
           <Environment preset="sunset" />
         </Canvas>
