@@ -111,7 +111,7 @@ class PatientSignUp(BaseModel):
     address: str
     name: str
     age: int
-    conditions: list[str]
+    condition: list[str]
 
 class DoctorSignUp(BaseModel):
     email: str
@@ -149,7 +149,7 @@ def patient_sign_up(body: PatientSignUp):
             name=body.name,
             age=body.age,
             user_id=clientUid,
-            conditions=body.conditions,
+            conditions=body.condition,
             # risk_level=body.risk_level,
             address=body.address
 
@@ -166,7 +166,6 @@ def patient_sign_up(body: PatientSignUp):
 def doctor_sign_up(body: DoctorSignUp):
     try:
         clientUid = auth_sign_up(email=body.email, password=body.password, role="doctor", full_name=body.name)
-
         return doctors_create(
             user_id=clientUid,
             specialty=body.speciality,

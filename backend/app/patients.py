@@ -41,6 +41,7 @@ def get_patient(patient_id: str) -> dict:
 def create_patient(
     name: str,
     age: int,
+    address: str,
     user_id: str | None = None,
     conditions: list | None = None,
 ) -> dict:
@@ -53,6 +54,7 @@ def create_patient(
             "name": name,
             "age": age,
             "conditions": conditions if conditions is not None else [],
+            "address": address
         }
         if user_id is not None:
             payload["user_id"] = user_id
