@@ -1,3 +1,5 @@
+import type { Patient, Provider } from "../types";
+
 export type LoginError =
   | "empty_fields"
   | "invalid_credentials"
@@ -23,5 +25,57 @@ export async function login(
   }
   const body = await res.json();
   console.log(body);
+  return { success: true };
+}
+export async function registerPatient(
+  email: string,
+  password: string,
+  patient: Patient,
+): Promise<{ success: boolean; error?: LoginError }> {
+  if (email == "" || password == "") {
+    return { success: false, error: "empty_fields" };
+  }
+  const body = {
+    email: email,
+    password: password,
+    age: patient.age,
+    address: patient.address,
+    conditions: patient.conditions,
+  };
+  const res = await fetch("http://localhost:8000/auth/patient/signup", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    return { error: "invalid_credentials", success: false };
+  }
+
+  return { success: true };
+}
+export async function registerProvider(
+  email: string,
+  password: string,
+  provider: Provider,
+): Promise<{ success: boolean; error?: LoginError }> {
+  if (email == "" || password == "") {
+    return { success: false, error: "empty_fields" };
+  }
+  const body = {
+    email: email,
+    password: password,
+    specialty: provider.specialty,
+    address: provider.address,
+    bio: provider.bio,
+  };
+  const res = await fetch("http://localhost:8000/auth/doctor/signup", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    return { error: "invalid_credentials", success: false };
+  }
+
   return { success: true };
 }

@@ -2,14 +2,16 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "../stores/appStore";
 import { RoleToggleRegister } from "../components/RoleToggle";
-import { login } from "../lib/auth";
+import { login, registerPatient, registerProvider } from "../lib/auth";
 import type { LoginError } from "../lib/auth";
 import { PatientRegisterModal } from "../components/PatientRegisterModal";
+import { ProviderRegisterModal } from "../components/ProviderRegisterModal";
+import type { Patient, Provider } from "../types";
 
 export function RegisterPage() {
   const navigate = useNavigate();
   const { role } = useAppStore();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(false);
@@ -20,11 +22,47 @@ export function RegisterPage() {
     invalid_credentials: "Invalid username or password",
     server_error: "An error occurred. Please try again later",
   };
+  const registerProviderInternal = async (
+    email: string,
+    password: string,
+    pro: Provider,
+  ) => {
+    setModal(false);
+    const res = await registerProvider(email, password, pro);
+
+    if (res.success) {
+      setError(null);
+      setLoading(false);
+    } else {
+      setError("invalid_credentials");
+      setLoading(false);
+    }
+  };
+  const registerPatientInternal = async (
+    email: string,
+    password: string,
+    pat: Patient,
+  ) => {
+    setModal(false);
+    const res = await registerPatient(email, password, pat);
+
+    if (res.success) {
+      setError(null);
+      setLoading(false);
+    } else {
+      setError("invalid_credentials");
+      setLoading(false);
+    }
+  };
 
   const handleStart = async () => {
-    setModal(true);
-    setError(null);
-    setLoading(true);
+    if (email == "" || password == "") {
+      setError("empty_fields");
+    } else {
+      setLoading(true);
+      setModal(true);
+      setError(null);
+    }
   };
 
   const handleInputChange = () => {
@@ -58,16 +96,16 @@ export function RegisterPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-800 mb-2">
-                Username
+                Email
               </label>
               <input
                 type="text"
-                value={username}
+                value={email}
                 onChange={(e) => {
-                  setUsername(e.target.value);
+                  setEmail(e.target.value);
                   handleInputChange();
                 }}
-                placeholder="Enter your username"
+                placeholder="Enter your Email"
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400"
               />
             </div>
@@ -122,13 +160,27 @@ export function RegisterPage() {
           Demo mode - no login required
         </p>
       </div>
-      <PatientRegisterModal
-        isOpen={modal}
-        onClose={() => {
-          setModal(false);
-        }}
-        onSubmit={() => {}}
-      ></PatientRegisterModal>
+      {role == "provider" ? (
+        <ProviderRegisterModal
+          isOpen={modal}
+          onClose={() => {
+            setModal(false);
+          }}
+          onSubmit={(pro) => {
+            registerProviderInternal(email, password, pro);
+          }}
+        ></ProviderRegisterModal>
+      ) : (
+        <PatientRegisterModal
+          isOpen={modal}
+          onClose={() => {
+            setModal(false);
+          }}
+          onSubmit={(pat) => {
+            registerPatientInternal(email, password, pat);
+          }}
+        ></PatientRegisterModal>
+      )}
     </div>
   );
 }

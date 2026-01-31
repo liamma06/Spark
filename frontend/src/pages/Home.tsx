@@ -66,7 +66,7 @@ export function Home() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-800 mb-2">
-                Username
+                Email
               </label>
               <input
                 type="text"
@@ -75,7 +75,7 @@ export function Home() {
                   setUsername(e.target.value);
                   handleInputChange();
                 }}
-                placeholder="Enter your username"
+                placeholder="Enter your Email"
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400"
               />
             </div>

@@ -1,57 +1,27 @@
 import { useState } from "react";
-import type { Patient } from "../types";
+import type { Provider } from "../types";
 
-interface PatientRegisterModalProps {
+interface ProviderRegisterModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (patient: Patient) => void;
+  onSubmit: (provider: Provider) => void;
   loading?: boolean;
 }
 
-const COMMON_CONDITIONS = [
-  "Hypertension",
-  "Type 2 Diabetes",
-  "Asthma",
-  "GERD",
-  "Anxiety Disorder",
-  "Depression",
-];
-
-export function PatientRegisterModal({
+export function ProviderRegisterModal({
   isOpen,
   onClose,
   onSubmit,
   loading = false,
-}: PatientRegisterModalProps) {
+}: ProviderRegisterModalProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [name, setName] = useState("");
-  const [age, setAge] = useState("");
   const [address, setAddress] = useState("");
-  const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
-  const [customCondition, setCustomCondition] = useState("");
-
-  const handleAddCondition = (condition: string) => {
-    if (!selectedConditions.includes(condition)) {
-      setSelectedConditions([...selectedConditions, condition]);
-    }
-  };
-
-  const handleRemoveCondition = (condition: string) => {
-    setSelectedConditions(selectedConditions.filter((c) => c !== condition));
-  };
-
-  const handleAddCustomCondition = () => {
-    if (
-      customCondition.trim() &&
-      !selectedConditions.includes(customCondition)
-    ) {
-      setSelectedConditions([...selectedConditions, customCondition]);
-      setCustomCondition("");
-    }
-  };
+  const [specialty, setSpecialty] = useState("");
+  const [bio, setBio] = useState("");
 
   const handleNextStep = () => {
-    if (name.trim() && age && address.trim()) {
+    if (name.trim() && address.trim() && specialty.trim()) {
       setCurrentStep(2);
     }
   };
@@ -61,18 +31,17 @@ export function PatientRegisterModal({
   };
 
   const handleSubmit = () => {
-    if (name.trim() && age && address.trim() && selectedConditions.length > 0) {
+    if (name.trim() && address.trim() && specialty.trim() && bio.trim()) {
       onSubmit({
         name: name.trim(),
-        age: parseInt(age),
-        conditions: selectedConditions,
-        address: address,
+        address: address.trim(),
+        specialty: specialty.trim(),
+        bio: bio.trim(),
       });
       setName("");
-      setAge("");
       setAddress("");
-      setSelectedConditions([]);
-      setCustomCondition("");
+      setSpecialty("");
+      setBio("");
       setCurrentStep(1);
     }
   };
@@ -80,15 +49,17 @@ export function PatientRegisterModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/20  flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/30  flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-br from-green-gradient-dark to-green-gradient-light text-white p-6">
-          <h2 className="text-2xl font-semibold">Create Your Profile</h2>
+          <h2 className="text-2xl font-semibold">
+            Create Your Provider Profile
+          </h2>
           <p className="text-accent-secondary-text text-sm mt-1">
             {currentStep === 1
               ? "Let's start with your basic information"
-              : "Now tell us about your health"}
+              : "Tell us about yourself"}
           </p>
           <div className="flex gap-2 mt-4">
             <div
@@ -122,22 +93,6 @@ export function PatientRegisterModal({
                 />
               </div>
 
-              {/* Age */}
-              <div>
-                <label className="block text-sm font-medium text-slate-800 mb-2">
-                  Age
-                </label>
-                <input
-                  type="number"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  placeholder="Enter your age"
-                  min="1"
-                  max="150"
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400"
-                />
-              </div>
-
               {/* Address */}
               <div>
                 <label className="block text-sm font-medium text-slate-800 mb-2">
@@ -151,82 +106,41 @@ export function PatientRegisterModal({
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400"
                 />
               </div>
+
+              {/* Specialty */}
+              <div>
+                <label className="block text-sm font-medium text-slate-800 mb-2">
+                  Specialty
+                </label>
+                <input
+                  type="text"
+                  value={specialty}
+                  onChange={(e) => setSpecialty(e.target.value)}
+                  placeholder="Enter your specialty (e.g., Cardiology)"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400"
+                />
+              </div>
             </>
           ) : (
             <>
-              {/* Conditions */}
+              {/* Bio */}
               <div>
-                <label className="block text-sm font-medium text-slate-800 mb-3">
-                  Medical Conditions
+                <label className="block text-sm font-medium text-slate-800 mb-2">
+                  Professional Bio
                 </label>
-
-                {/* Common conditions */}
-                <div className="space-y-2 mb-4">
-                  <p className="text-xs text-slate-500 font-medium">
-                    Select common conditions:
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {COMMON_CONDITIONS.map((condition) => (
-                      <button
-                        key={condition}
-                        onClick={() =>
-                          selectedConditions.includes(condition)
-                            ? handleRemoveCondition(condition)
-                            : handleAddCondition(condition)
-                        }
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                          selectedConditions.includes(condition)
-                            ? "bg-gradient-to-br from-green-gradient-dark to-green-gradient-light text-white"
-                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                        }`}
-                      >
-                        {condition}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Custom condition */}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={customCondition}
-                    onChange={(e) => setCustomCondition(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter") {
-                        handleAddCustomCondition();
-                      }
-                    }}
-                    placeholder="Add custom condition"
-                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 text-sm"
-                  />
-                  <button
-                    onClick={handleAddCustomCondition}
-                    className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:opacity-90"
-                  >
-                    Add
-                  </button>
-                </div>
-
-                {/* Selected conditions */}
-                {selectedConditions.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {selectedConditions.map((condition) => (
-                      <span
-                        key={condition}
-                        className="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-sm flex items-center gap-2"
-                      >
-                        {condition}
-                        <button
-                          onClick={() => handleRemoveCondition(condition)}
-                          className="text-slate-500 hover:text-slate-700"
-                        >
-                          ✕
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <p className="text-xs text-slate-500 mb-3">
+                  Write a short bio about yourself and your experience
+                </p>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Tell patients about your experience, qualifications, and approach to care..."
+                  rows={6}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 resize-none"
+                />
+                <p className="text-xs text-slate-400 mt-2">
+                  {bio.length}/500 characters
+                </p>
               </div>
             </>
           )}
@@ -252,7 +166,12 @@ export function PatientRegisterModal({
               </button>
               <button
                 onClick={handleNextStep}
-                disabled={!name.trim() || !age || !address.trim() || loading}
+                disabled={
+                  !name.trim() ||
+                  !address.trim() ||
+                  !specialty.trim() ||
+                  loading
+                }
                 className="flex-1 px-4 py-2 bg-gradient-to-br from-green-gradient-dark to-green-gradient-light text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 flex items-center justify-center"
               >
                 {loading ? (
@@ -277,7 +196,7 @@ export function PatientRegisterModal({
           ) : (
             <button
               onClick={handleSubmit}
-              disabled={selectedConditions.length === 0 || loading}
+              disabled={!bio.trim() || loading}
               className="flex-1 px-4 py-2 bg-gradient-to-br from-green-gradient-dark to-green-gradient-light text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 flex items-center justify-center"
             >
               {loading ? (

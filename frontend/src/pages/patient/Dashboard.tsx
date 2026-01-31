@@ -66,22 +66,6 @@ export function PatientDashboard() {
           <div className="grid grid-cols-1 gap-3">
             <Link
               to="/patient/chat"
-              className="flex flex-col gap-1 p-6 bg-linear-to-b from-green-gradient-dark to-green-gradient-light text-white rounded-2xl transition-colors"
-            >
-              <div className="grid grid-cols-2 justify-items-end">
-                <div>
-                  <h3 className="text-lg font-medium">
-                    Talk to Care Companion
-                  </h3>
-                  <p className="text-accent-secondary-text text-sm">
-                    Describe your symptoms or ask health questions
-                  </p>
-                </div>
-                <CircleArrow colorFill></CircleArrow>
-              </div>
-            </Link>
-            <Link
-              to="/patient/chat"
               className="flex flex-col gap-1 p-6 bg-white rounded-2xl transition-colors"
             >
               <div className="grid grid-cols-2 justify-items-end">
