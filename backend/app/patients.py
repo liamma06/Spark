@@ -38,6 +38,22 @@ def get_patient(patient_id: str) -> dict:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def get_patient_by_user_id(user_id: str) -> dict:
+    """
+    Get patient by user_id (auth user ID).
+    Raises HTTPException 404 if not found, 500 on Supabase error.
+    """
+    try:
+        res = supabase.table("patients").select("*").eq("user_id", user_id).execute()
+        if not res.data or len(res.data) == 0:
+            raise HTTPException(status_code=404, detail="Patient not found for this user")
+        return res.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 def search_patients_by_name(name_query: str) -> list:
     """
     Search patients by name (partial, case-insensitive).

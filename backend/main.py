@@ -30,7 +30,7 @@ from app.doctors import (
 from app.patients import (
     get_patients as patients_get_patients,
     get_patient as patients_get_patient,
-    search_patients_by_name as patients_search_by_name,
+    get_patient_by_user_id as patients_get_patient_by_user_id,
     create_patient as patients_create,
     update_patient_risk as patients_update_risk,
 )
@@ -178,7 +178,7 @@ def patient_sign_up(body: PatientSignUp):
             name=body.name,
             age=body.age,
             user_id=clientUid,
-            conditions=body.condition,
+            conditions=body.conditions,
             address=body.address
         )
     except Exception as e:
@@ -192,6 +192,7 @@ def patient_sign_up(body: PatientSignUp):
 def doctor_sign_up(body: DoctorSignUp):
     try:
         clientUid = auth_sign_up(email=body.email, password=body.password, role="doctor", full_name=body.name)
+
         return doctors_create(
             user_id=clientUid,
             specialty=body.speciality,
@@ -534,12 +535,6 @@ def get_patients():
     return patients_get_patients()
 
 
-@app.get("/api/patients/search")
-def search_patients(name: Optional[str] = None):
-    """Search patients by name (partial, case-insensitive). Returns all matching patients."""
-    return patients_search_by_name(name or "")
-
-
 @app.get("/api/patients/{patient_id}")
 def get_patient(patient_id: str):
     """Get one patient by id from Supabase."""
@@ -564,7 +559,26 @@ def create_patient(body: CreatePatientBody):
 def get_timeline(patientId: Optional[str] = None):
     """Get timeline events for a patient or all patients"""
     try:
-        events = timeline_get_timeline(patientId)
+        # If patientId is provided but not a valid UUID, try to get it from current user
+        actual_patient_id = patientId
+        if patientId and not _is_valid_uuid(patientId):
+            # Try to get patient ID from current user
+            try:
+                current_user = auth_get_current_user()
+                if current_user.get("success") and current_user.get("user"):
+                    user_id = current_user["user"]["id"]
+                    patient = patients_get_patient_by_user_id(user_id)
+                    actual_patient_id = patient["id"]
+                    logger.info(f"Resolved placeholder patientId '{patientId}' to actual UUID: {actual_patient_id}")
+                else:
+                    # If no user or can't get patient, return empty list for placeholder IDs
+                    logger.warning(f"Could not resolve placeholder patientId '{patientId}', returning empty timeline")
+                    return []
+            except Exception as e:
+                logger.warning(f"Could not get patient ID from current user: {e}, returning empty timeline")
+                return []
+        
+        events = timeline_get_timeline(actual_patient_id)
         # Convert snake_case keys to camelCase for frontend compatibility
         return [
             {

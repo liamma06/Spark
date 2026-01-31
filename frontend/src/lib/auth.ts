@@ -40,7 +40,7 @@ export async function registerPatient(
     password: password,
     age: patient.age,
     address: patient.address,
-    condition: patient.conditions,
+    conditions: patient.conditions,
     name: patient.name,
   };
   const res = await fetch("http://localhost:8000/auth/patient/signup", {
