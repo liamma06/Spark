@@ -156,12 +156,6 @@ export function DoctorModel({ playAnimation, onAnimationComplete }: DoctorModelP
       console.log('Talking animations found:', talkingAnimations.length, talkingAnimationNames);
       
       if (talkingAnimations.length > 0) {
-        // Stop idle animation
-        if (idleActionRef.current && idleActionRef.current.isRunning()) {
-          idleActionRef.current.setEffectiveWeight(0);
-          idleActionRef.current.stop();
-        }
-
         // Pick a random talking animation
         const randomTalkingAction = talkingAnimations[
           Math.floor(Math.random() * talkingAnimations.length)
@@ -169,12 +163,18 @@ export function DoctorModel({ playAnimation, onAnimationComplete }: DoctorModelP
         
         if (randomTalkingAction) {
           console.log('Playing talking animation');
-          talkingActionRef.current = randomTalkingAction;
           randomTalkingAction.setLoop(THREE.LoopOnce, 1);
           randomTalkingAction.reset();
-          randomTalkingAction.setEffectiveWeight(1);
           randomTalkingAction.play();
           
+          // Smooth crossfade from idle to talking (0.3 second transition)
+          if (idleActionRef.current && idleActionRef.current.isRunning()) {
+            idleActionRef.current.crossFadeTo(randomTalkingAction, 0.3, false);
+          } else {
+            randomTalkingAction.fadeIn(0.3);
+          }
+          
+          talkingActionRef.current = randomTalkingAction;
           setPreviousPlayState(true);
         }
       } else {
@@ -190,7 +190,7 @@ export function DoctorModel({ playAnimation, onAnimationComplete }: DoctorModelP
   useFrame((_, delta) => {
     // Update the animation mixer with slower speed (0.8x speed)
     if (mixer) {
-      mixer.update(delta * 0.8);
+      mixer.update(delta * 0.5);
     }
     
     // Check if talking animation has finished
@@ -198,16 +198,17 @@ export function DoctorModel({ playAnimation, onAnimationComplete }: DoctorModelP
       const talkingAction = talkingActionRef.current;
       // Check if the animation has finished (time >= duration for LoopOnce)
       if (talkingAction.loop === THREE.LoopOnce && talkingAction.time >= talkingAction.getClip().duration) {
-        // Stop talking animation
-        talkingAction.setEffectiveWeight(0);
-        talkingAction.stop();
-        
-        // Return to idle
+        // Smooth crossfade back to idle (0.3 second transition)
         if (idleActionRef.current) {
           idleActionRef.current.reset();
           idleActionRef.current.setLoop(THREE.LoopRepeat, Infinity);
-          idleActionRef.current.setEffectiveWeight(1);
           idleActionRef.current.play();
+          
+          // Crossfade from talking to idle
+          talkingAction.crossFadeTo(idleActionRef.current, 0.3, false);
+        } else {
+          // Fallback: fade out talking if no idle action
+          talkingAction.fadeOut(0.3);
         }
         
         talkingActionRef.current = null;
