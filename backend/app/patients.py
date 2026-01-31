@@ -38,6 +38,29 @@ def get_patient(patient_id: str) -> dict:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def search_patients_by_name(name_query: str) -> list:
+    """
+    Search patients by name (partial, case-insensitive).
+    Returns list of matching rows (snake_case keys). Empty list if query is empty or no matches.
+    """
+    q = (name_query or "").strip()
+    if not q:
+        return []
+    try:
+        res = (
+            supabase.table("patients")
+            .select("*")
+            .filter("name", "ilike", f"%{q}%")
+            .order("name")
+            .execute()
+        )
+        return res.data or []
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 def create_patient(
     name: str,
     age: int,
