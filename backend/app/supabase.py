@@ -131,23 +131,17 @@ def get_current_user() -> dict:
         if user:
             print(f"Current user: {user.user.email}")
             return {
-                "success": True,
+                "status": 200,
                 "user": user.user
             }
         else:
-            print("No user currently signed in")
-            return JSONResponse(
-                content={
-                    "msg": "No user currently "
-                },
-                status_code=400
-            )
+            return {
+                "status": 400
+            }
             
     except Exception as e:
-        print(f"❌ Error getting user: {str(e)}")
         return {
-            "success": False,
-            "error": str(e)
+            "status": 400
         }
 
 

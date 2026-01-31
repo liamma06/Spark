@@ -21,6 +21,7 @@ export function RegisterPage() {
     empty_fields: "Please enter both username and password",
     invalid_credentials: "Invalid username or password",
     server_error: "An error occurred. Please try again later",
+    incorrect_role: "Incorrect role"
   };
   const registerProviderInternal = async (
     email: string,
