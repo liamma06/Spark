@@ -166,6 +166,7 @@ export function RegisterPage() {
         <ProviderRegisterModal
           isOpen={modal}
           onClose={() => {
+            setLoading(false);
             setModal(false);
           }}
           onSubmit={(pro) => {
@@ -176,6 +177,7 @@ export function RegisterPage() {
         <PatientRegisterModal
           isOpen={modal}
           onClose={() => {
+            setLoading(false);
             setModal(false);
           }}
           onSubmit={(pat) => {

@@ -40,7 +40,7 @@ export async function registerPatient(
     password: password,
     age: patient.age,
     address: patient.address,
-    conditions: patient.conditions,
+    condition: patient.conditions,
     name: patient.name,
   };
   const res = await fetch("http://localhost:8000/auth/patient/signup", {
@@ -70,7 +70,7 @@ export async function registerProvider(
   const body = {
     email: email,
     password: password,
-    specialty: provider.specialty,
+    speciality: provider.specialty,
     address: provider.address,
     bio: provider.bio,
     name: provider.name,
