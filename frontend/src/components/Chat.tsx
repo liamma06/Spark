@@ -24,27 +24,32 @@ function CameraFocus() {
 }
 
 export function Chat({ patientId }: ChatProps) {
-  const { messages, sendMessage, isLoading } = useChat(patientId);
+  const { messages, sendMessage, isLoading, audioUrl } = useChat(patientId);
   const [input, setInput] = useState('');
   const [triggerAnimation, setTriggerAnimation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastAssistantMessageId = useRef<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const lastAudioUrl = useRef<string | null>(null);
+  const [currentAudioElement, setCurrentAudioElement] = useState<HTMLAudioElement | null>(null);
 
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Trigger animation when AI starts responding (once per new assistant message)
+  // Trigger animation when message is ready (after TTS completes)
+  // Since we now buffer the response until TTS is ready, this will trigger
+  // when both chat and TTS are complete, ensuring synchronization
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
     if (
       lastMessage &&
       lastMessage.role === 'assistant' &&
       lastMessage.id !== lastAssistantMessageId.current &&
-      lastMessage.content.length > 0 // Trigger when content first appears
+      lastMessage.content.length > 0 // Message is ready (TTS has completed)
     ) {
-      console.log('Triggering animation for message:', lastMessage.id);
+      console.log('Triggering animation for message (after TTS ready):', lastMessage.id);
       lastAssistantMessageId.current = lastMessage.id;
       // Reset trigger first, then set to true to ensure the change is detected
       setTriggerAnimation(false);
@@ -53,6 +58,54 @@ export function Chat({ patientId }: ChatProps) {
       }, 50);
     }
   }, [messages]);
+
+  // Play audio when new audio URL is available
+  useEffect(() => {
+    if (audioUrl && audioUrl !== lastAudioUrl.current) {
+      lastAudioUrl.current = audioUrl;
+      
+      // Clean up previous audio element
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      
+      // Create and play new audio
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      
+      // Set up audio element before playing (important for Web Audio API)
+      audio.crossOrigin = 'anonymous'; // Allow CORS for audio analysis
+      
+      // Update state BEFORE playing so audio analysis can connect
+      setCurrentAudioElement(audio);
+      
+      // Small delay to ensure state update and audio analysis setup
+      setTimeout(() => {
+        audio.play().catch((error) => {
+          console.error('Failed to play audio:', error);
+        });
+      }, 100);
+      
+      // Clean up when audio finishes
+      audio.addEventListener('ended', () => {
+        if (audioRef.current === audio) {
+          audioRef.current = null;
+          setCurrentAudioElement(null); // Clear state when audio ends
+        }
+        URL.revokeObjectURL(audioUrl);
+      });
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+        setCurrentAudioElement(null);
+      }
+    };
+  }, [audioUrl]);
 
   const handleAnimationComplete = () => {
     setTriggerAnimation(false);
@@ -80,6 +133,7 @@ export function Chat({ patientId }: ChatProps) {
           <DoctorModel 
             playAnimation={triggerAnimation} 
             onAnimationComplete={handleAnimationComplete}
+            audioElement={currentAudioElement}
           />
           <Environment preset="sunset" />
         </Canvas>

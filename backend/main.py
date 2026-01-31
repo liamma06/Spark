@@ -1,11 +1,23 @@
 import os
 import json
+import logging
+import traceback
 import cohere
 from datetime import datetime
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse
+
+from fastapi.responses import StreamingResponse, Response, JSONRespone
+from pydantic import BaseModel
+from dotenv import load_dotenv
+from app.supabase import sign_up
+from app.tts import text_to_speech
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from app.supabase import (
@@ -26,6 +38,11 @@ from app.patients import (
     get_patient as patients_get_patient,
     create_patient as patients_create,
     update_patient_risk as patients_update_risk,
+)
+from app.alerts import (
+    get_alerts as alerts_get_alerts,
+    acknowledge_alert as alerts_acknowledge_alert,
+    create_alert as alerts_create_alert,
 )
 
 from app.timeline import (
@@ -52,73 +69,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ============== In-Memory Data Store ==============
+# ============== In-Memory (timeline only; alerts use Supabase) ==============
 
-# Timeline events
-timeline_db = [
-    {
-        "id": "evt-1",
-        "patientId": "patient-maria",
-        "type": "symptom",
-        "title": "Reported chest tightness",
-        "details": "Patient described tightness in chest area, especially during morning hours",
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "evt-2",
-        "patientId": "patient-maria",
-        "type": "symptom",
-        "title": "Shortness of breath",
-        "details": "Difficulty breathing when climbing stairs",
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "evt-3",
-        "patientId": "patient-maria",
-        "type": "medication",
-        "title": "Metformin refill",
-        "details": "Monthly diabetes medication refilled",
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "evt-4",
-        "patientId": "patient-james",
-        "type": "symptom",
-        "title": "Sleep difficulties",
-        "details": "Having trouble falling asleep, racing thoughts at night",
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "evt-5",
-        "patientId": "patient-sarah",
-        "type": "symptom",
-        "title": "Mild headache",
-        "details": "Occasional tension headache, likely stress-related",
-        "createdAt": datetime.now().isoformat(),
-    },
-]
-
-# Alerts
-alerts_db = [
-    {
-        "id": "alert-1",
-        "patientId": "patient-maria",
-        "severity": "critical",
-        "message": "Chest tightness reported - potential cardiac concern",
-        "reasoning": "Patient is 67 years old with diabetes and hypertension history. Combination of chest tightness and shortness of breath requires urgent evaluation.",
-        "acknowledged": False,
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "alert-2",
-        "patientId": "patient-james",
-        "severity": "warning",
-        "message": "Persistent sleep issues may require intervention",
-        "reasoning": "Patient has reported sleep difficulties for over a week. Combined with existing anxiety diagnosis, may need medication adjustment.",
-        "acknowledged": False,
-        "createdAt": datetime.now().isoformat(),
-    },
-]
+timeline_db = []
 
 # ============== Risk Assessment ==============
 
@@ -155,6 +108,9 @@ class ChatRequest(BaseModel):
 class AlertAcknowledge(BaseModel):
     acknowledged: bool = True
 
+class TTSRequest(BaseModel):
+    text: str
+    voice_id: Optional[str] = None
 
 class CreateDoctorBody(BaseModel):
     user_id: str = Field(..., alias="userId")
@@ -198,9 +154,11 @@ Important guidelines:
 - Never diagnose conditions or prescribe treatments
 - Always recommend consulting a healthcare provider for serious concerns
 - Ask follow-up questions about symptom duration, severity, and any related factors
-- Keep responses concise but caring
+- **Keep responses SHORT and concise - aim for 2-3 sentences maximum**
+- Be direct and to the point while remaining caring
+- Prioritize brevity without losing empathy
 
-Remember: You are a bridge to care, not a replacement for professional medical advice."""
+Remember: You are a bridge to care, not a replacement for professional medical advice. Keep your responses brief to ensure quick, helpful interactions."""
 
 # ============== Routes ==============
 
@@ -303,17 +261,16 @@ async def chat(request: ChatRequest):
                     except HTTPException:
                         pass
                 
-                # Add to timeline
-                event_id = f"evt-{len(timeline_db) + 1}"
+                # Add to timeline (in-memory for now)
+                details = last_message[:100] + "..." if len(last_message) > 100 else last_message
                 timeline_db.append({
-                    "id": event_id,
+                    "id": f"evt-{len(timeline_db) + 1}",
                     "patientId": request.patientId,
                     "type": "chat",
                     "title": "AI conversation",
-                    "details": last_message[:100] + "..." if len(last_message) > 100 else last_message,
+                    "details": details,
                     "createdAt": datetime.now().isoformat(),
                 })
-                    
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -321,6 +278,40 @@ async def chat(request: ChatRequest):
     
     return StreamingResponse(generate(), media_type="text/plain")
 
+# --- Text-to-Speech ---
+
+@app.post("/api/tts")
+async def generate_speech(request: TTSRequest):
+    """Generate speech audio from text using ElevenLabs"""
+    try:
+        logger.info(f"TTS request received - text length: {len(request.text)}, voice_id: {request.voice_id or 'default'}")
+        
+        if not request.text or not request.text.strip():
+            raise ValueError("Text cannot be empty")
+        
+        audio_bytes = text_to_speech(request.text, request.voice_id)
+        
+        logger.info(f"TTS generation successful - audio size: {len(audio_bytes)} bytes")
+        
+        return Response(
+            content=audio_bytes,
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": "inline; filename=speech.mp3"
+            }
+        )
+    except ValueError as e:
+        error_msg = str(e)
+        logger.error(f"TTS ValueError: {error_msg}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=error_msg)
+    except Exception as e:
+        error_msg = f"TTS generation failed: {str(e)}"
+        logger.error(f"TTS Exception: {error_msg}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=error_msg)
+
+# --- Patients ---
 # --- Patients (Supabase: app.patients) ---
 
 @app.get("/api/patients")
@@ -346,7 +337,7 @@ def create_patient(body: CreatePatientBody):
         risk_level=body.risk_level,
     )
 
-# --- Timeline ---
+# --- Timeline (in-memory for now) ---
 
 @app.get("/api/timeline")
 def timeline(patientId: Optional[str] = None):
@@ -357,21 +348,21 @@ def timeline(patientId: Optional[str] = None):
 @app.get("/api/get_timeline")
 def get_timeline():
     timeline_get_timeline("thing")
-# --- Alerts ---
+
+# --- Alerts (Supabase: app.alerts) ---
 
 @app.get("/api/alerts")
-def get_alerts(patientId: Optional[str] = None):
-    if patientId:
-        return [a for a in alerts_db if a["patientId"] == patientId]
-    return alerts_db
+def get_alerts(patientId: Optional[str] = None, doctorId: Optional[str] = None):
+    """
+    List alerts scoped by patient or doctor. Doctors only see alerts for their assigned patients.
+    Pass patientId (one patient's alerts) or doctorId (alerts for all of that doctor's patients).
+    If neither is passed, returns empty list.
+    """
+    return alerts_get_alerts(patient_id=patientId, doctor_id=doctorId)
 
 @app.post("/api/alerts/{alert_id}/acknowledge")
 def acknowledge_alert(alert_id: str):
-    for alert in alerts_db:
-        if alert["id"] == alert_id:
-            alert["acknowledged"] = True
-            return alert
-    raise HTTPException(status_code=404, detail="Alert not found")
+    return alerts_acknowledge_alert(alert_id)
 
 # --- Doctors (Supabase: app.doctors) ---
 

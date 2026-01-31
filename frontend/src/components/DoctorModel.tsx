@@ -3,26 +3,77 @@ import { useFrame } from '@react-three/fiber';
 import { useGLTF, useAnimations } from '@react-three/drei';
 import * as THREE from 'three';
 
+import { useAudioAnalysis } from '../hooks/useAudioAnalysis';
+
 interface DoctorModelProps {
   playAnimation?: boolean;
   onAnimationComplete?: () => void;
+  audioElement?: HTMLAudioElement | null;
 }
 
-export function DoctorModel({ playAnimation, onAnimationComplete }: DoctorModelProps) {
+export function DoctorModel({ playAnimation, onAnimationComplete, audioElement }: DoctorModelProps) {
   const group = useRef<THREE.Group>(null);
   const [previousPlayState, setPreviousPlayState] = useState(false);
   const idleActionRef = useRef<THREE.AnimationAction | null>(null);
   const talkingActionRef = useRef<THREE.AnimationAction | null>(null);
+  const jawBoneRef = useRef<THREE.Bone | null>(null);
+  const originalJawRotationRef = useRef<THREE.Euler | null>(null);
+  const originalJawPositionRef = useRef<THREE.Vector3 | null>(null);
   
   // Use DoctorM.glb (male doctor) - you can change to DoctorF.glb if preferred
   // Use scene directly from useGLTF - do NOT clone as it breaks animations
   const { scene, animations } = useGLTF('/DoctorM.glb');
   
   const { actions, mixer } = useAnimations(animations || [], group);
+  
+  // Analyze audio for lip sync
+  const audioAmplitude = useAudioAnalysis(audioElement || null);
 
   // Get all available animation names - use animations array as source of truth
   const animationNames = animations?.map(clip => clip.name) || [];
   
+  // Find jaw bone in the scene and store original rotation
+  useEffect(() => {
+    if (!scene) return;
+    
+      scene.traverse((child) => {
+        if (child instanceof THREE.Bone && child.name.toLowerCase() === 'jaw') {
+          jawBoneRef.current = child;
+          // Store original rotation to preserve animation-based rotation
+          originalJawRotationRef.current = new THREE.Euler(
+            child.rotation.x,
+            child.rotation.y,
+            child.rotation.z
+          );
+          // Store original position to adjust pivot point
+          originalJawPositionRef.current = new THREE.Vector3(
+            child.position.x,
+            child.position.y,
+            child.position.z
+          );
+          console.log('✅ Jaw bone found:', child.name, 'Original rotation:', {
+            x: child.rotation.x,
+            y: child.rotation.y,
+            z: child.rotation.z
+          }, 'Original position:', {
+            x: child.position.x,
+            y: child.position.y,
+            z: child.position.z
+          });
+        }
+      });
+    
+    if (!jawBoneRef.current) {
+      console.warn('⚠️ Jaw bone not found. Make sure the bone is named "jaw" in the model.');
+      // Try to find it with different case variations
+      scene.traverse((child) => {
+        if (child instanceof THREE.Bone) {
+          console.log('Available bone:', child.name);
+        }
+      });
+    }
+  }, [scene]);
+
   // Proper material setup and model configuration - runs after scene loads
   useEffect(() => {
     if (!scene) return;
@@ -193,6 +244,38 @@ export function DoctorModel({ playAnimation, onAnimationComplete }: DoctorModelP
       mixer.update(delta * 0.5);
     }
     
+    // Apply jaw rotation with adjusted pivot point AFTER mixer updates
+    // This must happen after mixer.update() to override animation-driven rotation
+    if (jawBoneRef.current && originalJawRotationRef.current && originalJawPositionRef.current) {
+      if (audioAmplitude > 0) {
+        // Rotate jaw down (open) based on audio amplitude
+        const maxRotation = .8; // Maximum jaw opening in radians
+        const jawRotation = audioAmplitude * maxRotation;
+        
+        // Move the bone's position to shift the pivot point further back in the head
+        // This makes the rotation happen around a point deeper in the head
+        const pivotOffsetBack = 0; // How far back to move the pivot (increased for more effect)
+        const pivotOffsetDown = 0.015; // Slight downward offset for natural pivot
+        
+        // Adjust position AFTER mixer updates to move pivot point
+        // The position change shifts where the rotation axis is
+        jawBoneRef.current.position.set(
+          originalJawPositionRef.current.x,
+          originalJawPositionRef.current.y - (pivotOffsetDown * audioAmplitude),
+          originalJawPositionRef.current.z - (pivotOffsetBack * audioAmplitude)
+        );
+        
+        // Apply rotation - this overrides any animation-driven rotation
+        jawBoneRef.current.rotation.x = originalJawRotationRef.current.x + jawRotation;
+      } else {
+        // Reset to original rotation and position when no audio
+        jawBoneRef.current.rotation.x = originalJawRotationRef.current.x;
+        jawBoneRef.current.rotation.y = originalJawRotationRef.current.y;
+        jawBoneRef.current.rotation.z = originalJawRotationRef.current.z;
+        jawBoneRef.current.position.copy(originalJawPositionRef.current);
+      }
+    }
+    
     // Check if talking animation has finished
     if (talkingActionRef.current) {
       const talkingAction = talkingActionRef.current;
@@ -223,6 +306,7 @@ export function DoctorModel({ playAnimation, onAnimationComplete }: DoctorModelP
       idleActionRef.current.play();
     }
   });
+
 
   // Rotate the model slightly for better viewing
   useFrame((state) => {

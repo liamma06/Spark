@@ -61,3 +61,40 @@ export async function* streamChat(
     yield decoder.decode(value);
   }
 }
+
+// TTS API - Generate speech audio from text
+export async function generateSpeech(text: string, voiceId?: string): Promise<Blob> {
+  const res = await fetch(`${API_BASE}/tts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, voice_id: voiceId }),
+  });
+
+  if (!res.ok) {
+    // Try to extract error message from response
+    let errorMessage = 'TTS generation failed';
+    try {
+      const errorData = await res.json();
+      if (errorData.detail) {
+        errorMessage = `TTS generation failed: ${errorData.detail}`;
+      } else if (errorData.message) {
+        errorMessage = `TTS generation failed: ${errorData.message}`;
+      }
+    } catch (e) {
+      // If response is not JSON, use status text
+      errorMessage = `TTS generation failed: ${res.status} ${res.statusText}`;
+    }
+    
+    console.error('TTS API Error:', {
+      status: res.status,
+      statusText: res.statusText,
+      message: errorMessage,
+      text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+      voiceId: voiceId || 'default'
+    });
+    
+    throw new Error(errorMessage);
+  }
+
+  return res.blob();
+}
