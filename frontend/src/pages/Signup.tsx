@@ -1,16 +1,20 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "../stores/appStore";
-import { RoleToggle } from "../components/RoleToggle";
-import { login } from "../lib/auth";
+import { RoleToggleRegister } from "../components/RoleToggle";
+import { login, registerPatient, registerProvider } from "../lib/auth";
 import type { LoginError } from "../lib/auth";
+import { PatientRegisterModal } from "../components/PatientRegisterModal";
+import { ProviderRegisterModal } from "../components/ProviderRegisterModal";
+import type { Patient, Provider } from "../types";
 
-export function Home() {
+export function RegisterPage() {
   const navigate = useNavigate();
   const { role } = useAppStore();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [modal, setModal] = useState(false);
   const [error, setError] = useState<LoginError | null>(null);
 
   const errorMessages: Record<LoginError, string> = {
@@ -18,20 +22,46 @@ export function Home() {
     invalid_credentials: "Invalid username or password",
     server_error: "An error occurred. Please try again later",
   };
+  const registerProviderInternal = async (
+    email: string,
+    password: string,
+    pro: Provider,
+  ) => {
+    setModal(false);
+    const res = await registerProvider(email, password, pro);
+
+    if (res.success) {
+      setError(null);
+      setLoading(false);
+    } else {
+      setError("invalid_credentials");
+      setLoading(false);
+    }
+  };
+  const registerPatientInternal = async (
+    email: string,
+    password: string,
+    pat: Patient,
+  ) => {
+    setModal(false);
+    const res = await registerPatient(email, password, pat);
+
+    if (res.success) {
+      setError(null);
+      setLoading(false);
+    } else {
+      setError("invalid_credentials");
+      setLoading(false);
+    }
+  };
 
   const handleStart = async () => {
-    setError(null);
-    setLoading(true);
-    const res = await login(username, password);
-    setLoading(false);
-    if (res.success) {
-      if (role === "patient") {
-        navigate("/patient");
-      } else {
-        navigate("/provider");
-      }
-    } else if (res.error) {
-      setError(res.error);
+    if (email == "" || password == "") {
+      setError("empty_fields");
+    } else {
+      setLoading(true);
+      setModal(true);
+      setError(null);
     }
   };
 
@@ -59,7 +89,7 @@ export function Home() {
         {/* Card */}
         <div className="bg-white rounded-2xl p-8">
           <h1 className="font-medium text-[1.7em] pb-5">
-            {role == "patient" ? "Patient" : "Provider"} Sign In
+            {role == "patient" ? "Patient" : "Provider"} Registration
           </h1>
 
           {/* Login Inputs */}
@@ -70,9 +100,9 @@ export function Home() {
               </label>
               <input
                 type="text"
-                value={username}
+                value={email}
                 onChange={(e) => {
-                  setUsername(e.target.value);
+                  setEmail(e.target.value);
                   handleInputChange();
                 }}
                 placeholder="Enter your Email"
@@ -95,7 +125,7 @@ export function Home() {
               />
             </div>
           </div>
-          <RoleToggle></RoleToggle>
+          <RoleToggleRegister></RoleToggleRegister>
           <div className="text-red-400 text-sm ml-1">
             {error ? errorMessages[error] : ""}
           </div>
@@ -120,7 +150,7 @@ export function Home() {
                 />
               </svg>
             ) : (
-              `Continue as ${role === "patient" ? "Patient" : "Provider"}`
+              `Register as ${role === "patient" ? "Patient" : "Provider"}`
             )}
           </button>
         </div>
@@ -130,6 +160,27 @@ export function Home() {
           Demo mode - no login required
         </p>
       </div>
+      {role == "provider" ? (
+        <ProviderRegisterModal
+          isOpen={modal}
+          onClose={() => {
+            setModal(false);
+          }}
+          onSubmit={(pro) => {
+            registerProviderInternal(email, password, pro);
+          }}
+        ></ProviderRegisterModal>
+      ) : (
+        <PatientRegisterModal
+          isOpen={modal}
+          onClose={() => {
+            setModal(false);
+          }}
+          onSubmit={(pat) => {
+            registerPatientInternal(email, password, pat);
+          }}
+        ></PatientRegisterModal>
+      )}
     </div>
   );
 }

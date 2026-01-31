@@ -55,16 +55,20 @@ app.add_middleware(
 
 # ============== Pydantic Models ==============
 
+
 class ChatMessage(BaseModel):
     role: str
     content: str
+
 
 class ChatRequest(BaseModel):
     messages: list[ChatMessage]
     patientId: Optional[str] = None
 
+
 class AlertAcknowledge(BaseModel):
     acknowledged: bool = True
+
 
 
 class CreateDoctorBody(BaseModel):
@@ -118,12 +122,15 @@ class DoctorSignUp(BaseModel):
 
 # Basic Routes
 
+
 @app.get("/")
 def home():
     return {"status": "hello world"}
 
+
 def read_root():
     return {"status": "ok", "message": "CareBridge API is running"}
+
 
 @app.get("/health")
 def health_check():
@@ -179,8 +186,9 @@ def doctor_sign_up(body: DoctorSignUp):
 @app.post("/auth/signin")
 def sign_in(email: str, password: str):
     res = auth_sign_in(email=email, password=password)
-    
+
     return res
+
 
 @app.post("/auth/sign_out")
 def sign_out():
@@ -188,12 +196,15 @@ def sign_out():
 
     return res
 
+
 @app.get("/auth/getuser")
 def get_current_user():
     res = auth_get_current_user()
     return res
-    
+
+
 # --- Chat ---
+
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
@@ -234,6 +245,7 @@ async def chat(request: ChatRequest):
                     pass
         except Exception as e:
             import traceback
+
             traceback.print_exc()
             yield f"I'm sorry, I encountered an error: {str(e)}"
 
@@ -241,12 +253,14 @@ async def chat(request: ChatRequest):
 
 # --- TTS (app.tts / ElevenLabs) ---
 
+
 @app.post("/api/tts")
 def generate_speech(request: TTSRequest):
     """Generate speech from text using ElevenLabs (app.tts)."""
     return handle_tts_request(request.text, request.voice_id)
 
 # --- Patients (Supabase: app.patients) ---
+
 
 @app.get("/api/patients")
 def get_patients():
@@ -273,12 +287,15 @@ def create_patient(body: CreatePatientBody):
 
 # --- Timeline (Supabase: app.timeline) ---
 
+
 @app.get("/api/timeline")
 def get_timeline(patientId: Optional[str] = None):
     """List timeline events from Supabase, optionally filtered by patient."""
     return timeline_get_timeline(patientId)
 
+
 # --- Alerts (Supabase: app.alerts) ---
+
 
 @app.get("/api/alerts")
 def get_alerts(patientId: Optional[str] = None, doctorId: Optional[str] = None):
@@ -289,11 +306,14 @@ def get_alerts(patientId: Optional[str] = None, doctorId: Optional[str] = None):
     """
     return alerts_get_alerts(patient_id=patientId, doctor_id=doctorId)
 
+
 @app.post("/api/alerts/{alert_id}/acknowledge")
 def acknowledge_alert(alert_id: str):
     return alerts_acknowledge_alert(alert_id)
 
+
 # --- Doctors (Supabase: app.doctors) ---
+
 
 @app.post("/api/doctors")
 def create_doctor(body: CreateDoctorBody):
@@ -327,14 +347,18 @@ def disconnect_patient_doctor(patient_id: str, doctor_id: str):
     """Remove the connection between a doctor and a patient."""
     return doctors_disconnect(patient_id, doctor_id)
 
+
 # ============== Run ==============
 
 if __name__ == "__main__":
     import uvicorn
-    print("""
+
+    print(
+        """
 CareBridge Backend
 ==================
 Server running on http://localhost:8000
 Press Ctrl+C to stop
-    """)
+    """
+    )
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -7,7 +7,7 @@ export function RoleToggle() {
     return role == "patient" ? "Provider" : "Patient";
   };
   return (
-    <div className="flex flex-col w-full items-start mb-6 ml-1">
+    <div className="flex flex-col w-full items-start ml-1">
       <a
         className="text-sm text-primary cursor-pointer hover:underline pt-2"
         onClick={() => {
@@ -15,6 +15,25 @@ export function RoleToggle() {
         }}
       >
         I'm a {otherRole()}?
+      </a>
+    </div>
+  );
+}
+export function RoleToggleRegister() {
+  const { role, setRole } = useAppStore();
+
+  const otherRole = () => {
+    return role == "patient" ? "Provider" : "Patient";
+  };
+  return (
+    <div className="flex flex-col w-full items-start ml-1">
+      <a
+        className="text-sm text-primary cursor-pointer hover:underline pt-2"
+        onClick={() => {
+          setRole(role == "patient" ? "provider" : "patient");
+        }}
+      >
+        Register as a {otherRole()}?
       </a>
     </div>
   );

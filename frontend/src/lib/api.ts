@@ -1,55 +1,63 @@
-const API_BASE = 'http://localhost:8000/api';
+const API_BASE = "http://localhost:8000/api";
 
 // Generic fetch wrapper
-async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
+async function apiFetch<T>(
+  endpoint: string,
+  options?: RequestInit,
+): Promise<T> {
   const res = await fetch(`${API_BASE}${endpoint}`, {
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     ...options,
   });
-  
+
   if (!res.ok) {
     throw new Error(`API error: ${res.status}`);
   }
-  
+
   return res.json();
 }
 
 // Patients API
 export const patientsApi = {
-  getAll: () => apiFetch<import('../types').Patient[]>('/patients'),
-  getById: (id: string) => apiFetch<import('../types').Patient>(`/patients/${id}`),
+  getAll: () => apiFetch<import("../types").Patient[]>("/patients"),
+  getById: (id: string) =>
+    apiFetch<import("../types").Patient>(`/patients/${id}`),
 };
 
 // Timeline API
 export const timelineApi = {
-  getByPatient: (patientId: string) => 
-    apiFetch<import('../types').TimelineEvent[]>(`/timeline?patientId=${patientId}`),
+  getByPatient: (patientId: string) =>
+    apiFetch<import("../types").TimelineEvent[]>(
+      `/timeline?patientId=${patientId}`,
+    ),
 };
 
 // Alerts API
 export const alertsApi = {
-  getAll: () => apiFetch<import('../types').Alert[]>('/alerts'),
-  getByPatient: (patientId: string) => 
-    apiFetch<import('../types').Alert[]>(`/alerts?patientId=${patientId}`),
-  acknowledge: (id: string) => 
-    apiFetch<import('../types').Alert>(`/alerts/${id}/acknowledge`, { method: 'POST' }),
+  getAll: () => apiFetch<import("../types").Alert[]>("/alerts"),
+  getByPatient: (patientId: string) =>
+    apiFetch<import("../types").Alert[]>(`/alerts?patientId=${patientId}`),
+  acknowledge: (id: string) =>
+    apiFetch<import("../types").Alert>(`/alerts/${id}/acknowledge`, {
+      method: "POST",
+    }),
 };
 
 // Chat API (streaming)
 export async function* streamChat(
   messages: { role: string; content: string }[],
-  patientId: string
+  patientId: string,
 ): AsyncGenerator<string> {
   const res = await fetch(`${API_BASE}/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages, patientId }),
   });
 
   if (!res.ok || !res.body) {
-    throw new Error('Chat stream failed');
+    throw new Error("Chat stream failed");
   }
 
   const reader = res.body.getReader();
@@ -63,16 +71,19 @@ export async function* streamChat(
 }
 
 // TTS API - Generate speech audio from text
-export async function generateSpeech(text: string, voiceId?: string): Promise<Blob> {
+export async function generateSpeech(
+  text: string,
+  voiceId?: string,
+): Promise<Blob> {
   const res = await fetch(`${API_BASE}/tts`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, voice_id: voiceId }),
   });
 
   if (!res.ok) {
     // Try to extract error message from response
-    let errorMessage = 'TTS generation failed';
+    let errorMessage = "TTS generation failed";
     try {
       const errorData = await res.json();
       if (errorData.detail) {
@@ -84,17 +95,18 @@ export async function generateSpeech(text: string, voiceId?: string): Promise<Bl
       // If response is not JSON, use status text
       errorMessage = `TTS generation failed: ${res.status} ${res.statusText}`;
     }
-    
-    console.error('TTS API Error:', {
+
+    console.error("TTS API Error:", {
       status: res.status,
       statusText: res.statusText,
       message: errorMessage,
-      text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
-      voiceId: voiceId || 'default'
+      text: text.substring(0, 100) + (text.length > 100 ? "..." : ""),
+      voiceId: voiceId || "default",
     });
-    
+
     throw new Error(errorMessage);
   }
 
   return res.blob();
 }
+

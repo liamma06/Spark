@@ -4,8 +4,14 @@ export interface Patient {
   name: string;
   age: number;
   conditions: string[];
-  riskLevel: "low" | "medium" | "high";
   createdAt: Date;
+  address: string;
+}
+export interface Provider {
+  name: string;
+  address: string;
+  specialty: string;
+  bio: string;
 }
 
 // Chat types
