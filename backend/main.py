@@ -6,9 +6,15 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from app.supabase import sign_up
+from app.doctors import (
+    get_my_patients as doctors_get_my_patients,
+    get_patient_doctors as doctors_get_patient_doctors,
+    connect_patient_doctor as doctors_connect,
+    disconnect_patient_doctor as doctors_disconnect,
+)
 
 # Load environment variables
 load_dotenv()
@@ -161,6 +167,15 @@ class ChatRequest(BaseModel):
 class AlertAcknowledge(BaseModel):
     acknowledged: bool = True
 
+
+class PatientDoctorLink(BaseModel):
+    patient_id: str = Field(..., alias="patientId")
+    doctor_id: str = Field(..., alias="doctorId")
+
+    class Config:
+        populate_by_name = True
+
+
 # ============== System Prompt ==============
 
 SYSTEM_PROMPT = """You are CareBridge, a caring and empathetic AI health companion. Your role is to:
@@ -199,7 +214,6 @@ def health_check():
 def read_root(email: str, password: str, full_name: str, role: str):
     result = sign_up(email, password, full_name, role)
     return result
-
 
 # --- Chat ---
 
@@ -312,6 +326,34 @@ def acknowledge_alert(alert_id: str):
             alert["acknowledged"] = True
             return alert
     raise HTTPException(status_code=404, detail="Alert not found")
+
+# --- Doctor–Patient Connection (Supabase: app.doctors) ---
+
+@app.get("/api/doctors/me/patients")
+def get_my_patients(doctor_id: str):
+    """
+    List all patients connected to this doctor.
+    Pass doctor_id as query param (UUID). With auth, resolve doctor_id from current user's token.
+    """
+    return doctors_get_my_patients(doctor_id)
+
+
+@app.get("/api/patients/{patient_id}/doctors")
+def get_patient_doctors(patient_id: str):
+    """List all doctors connected to this patient."""
+    return doctors_get_patient_doctors(patient_id)
+
+
+@app.post("/api/patient_doctors")
+def connect_patient_doctor(body: PatientDoctorLink):
+    """Connect a doctor to a patient (assign patient to doctor)."""
+    return doctors_connect(body.patient_id, body.doctor_id)
+
+
+@app.delete("/api/patient_doctors")
+def disconnect_patient_doctor(patient_id: str, doctor_id: str):
+    """Remove the connection between a doctor and a patient."""
+    return doctors_disconnect(patient_id, doctor_id)
 
 # ============== Run ==============
 
