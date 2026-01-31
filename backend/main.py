@@ -27,7 +27,6 @@ from app.patients import (
     get_patient as patients_get_patient,
     search_patients_by_name as patients_search_by_name,
     create_patient as patients_create,
-    update_patient_risk as patients_update_risk,
 )
 from app.alerts import (
     get_alerts as alerts_get_alerts,
@@ -251,7 +250,6 @@ async def chat(request: ChatRequest):
                             f"High-risk symptoms reported: \"{last_message[:50]}...\"",
                             "Keywords indicating potentially serious symptoms were detected.",
                         )
-                        patients_update_risk(request.patientId, "high")
                     except HTTPException:
                         pass
                 details = last_message[:100] + "..." if len(last_message) > 100 else last_message
