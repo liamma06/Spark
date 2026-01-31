@@ -1,10 +1,21 @@
 import os
 import json
+import logging
+import traceback
 import cohere
 from datetime import datetime
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, Response
+from pydantic import BaseModel
+from dotenv import load_dotenv
+from app.supabase import sign_up
+from app.tts import text_to_speech
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -146,6 +157,9 @@ class ChatRequest(BaseModel):
 class AlertAcknowledge(BaseModel):
     acknowledged: bool = True
 
+class TTSRequest(BaseModel):
+    text: str
+    voice_id: Optional[str] = None
 
 class CreateDoctorBody(BaseModel):
     user_id: str = Field(..., alias="userId")
@@ -189,9 +203,11 @@ Important guidelines:
 - Never diagnose conditions or prescribe treatments
 - Always recommend consulting a healthcare provider for serious concerns
 - Ask follow-up questions about symptom duration, severity, and any related factors
-- Keep responses concise but caring
+- **Keep responses SHORT and concise - aim for 2-3 sentences maximum**
+- Be direct and to the point while remaining caring
+- Prioritize brevity without losing empathy
 
-Remember: You are a bridge to care, not a replacement for professional medical advice."""
+Remember: You are a bridge to care, not a replacement for professional medical advice. Keep your responses brief to ensure quick, helpful interactions."""
 
 # ============== Routes ==============
 
@@ -295,6 +311,40 @@ async def chat(request: ChatRequest):
     
     return StreamingResponse(generate(), media_type="text/plain")
 
+# --- Text-to-Speech ---
+
+@app.post("/api/tts")
+async def generate_speech(request: TTSRequest):
+    """Generate speech audio from text using ElevenLabs"""
+    try:
+        logger.info(f"TTS request received - text length: {len(request.text)}, voice_id: {request.voice_id or 'default'}")
+        
+        if not request.text or not request.text.strip():
+            raise ValueError("Text cannot be empty")
+        
+        audio_bytes = text_to_speech(request.text, request.voice_id)
+        
+        logger.info(f"TTS generation successful - audio size: {len(audio_bytes)} bytes")
+        
+        return Response(
+            content=audio_bytes,
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": "inline; filename=speech.mp3"
+            }
+        )
+    except ValueError as e:
+        error_msg = str(e)
+        logger.error(f"TTS ValueError: {error_msg}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=error_msg)
+    except Exception as e:
+        error_msg = f"TTS generation failed: {str(e)}"
+        logger.error(f"TTS Exception: {error_msg}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=error_msg)
+
+# --- Patients ---
 # --- Patients (Supabase: app.patients) ---
 
 @app.get("/api/patients")
