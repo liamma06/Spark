@@ -13,7 +13,7 @@ from app.supabase import (
     sign_out as auth_sign_out,
     get_current_user as auth_get_current_user,
 )
-from app.cohere_chat import get_system_prompt, assess_risk, stream_chat
+from app.cohere_chat import get_system_prompt, assess_risk, stream_chat, generate_summary
 from app.tts import handle_tts_request
 from app.doctors import (
     create_doctor as doctors_create,
@@ -212,6 +212,35 @@ def get_current_user():
 
 
 # --- Chat ---
+
+@app.get("/api/chat/greeting")
+def get_greeting():
+    """Return a hardcoded initial greeting from the doctor."""
+    greeting_text = "Hello! How can I help you today?"
+    return {"text": greeting_text}
+
+
+@app.post("/api/chat/end")
+def end_call(request: ChatRequest):
+    """End the call: return closing message and generate conversation summary."""
+    # Hardcoded closing message
+    closing_message = "Thank you for sharing with me today. Take care and feel better soon!"
+    
+    # Generate summary from conversation messages
+    messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+    summary = ""
+    try:
+        if messages:
+            summary = generate_summary(messages)
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to generate summary: {e}")
+        summary = "**Summary**: Unable to generate conversation summary."
+    
+    return {
+        "closingMessage": closing_message,
+        "summary": summary
+    }
 
 
 @app.post("/api/chat")

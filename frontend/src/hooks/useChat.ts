@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { streamChat, generateSpeech } from '../lib/api';
+import { streamChat, generateSpeech, getGreeting, endCall } from '../lib/api';
 import { generateId } from '../lib/utils';
 import type { Message } from '../types';
 
@@ -78,6 +78,85 @@ export function useChat(patientId: string) {
     }
   }, [messages, patientId]);
 
+  const initializeGreeting = useCallback(async () => {
+    // Don't initialize if there are already messages
+    if (messages.length > 0) return;
+    
+    setIsLoading(true);
+    try {
+      // Get the hardcoded greeting text
+      const greetingData = await getGreeting();
+      const greetingText = greetingData.text;
+      
+      // Create the greeting message
+      const greetingId = generateId();
+      const greetingMessage: Message = {
+        id: greetingId,
+        role: 'assistant',
+        content: greetingText,
+        createdAt: new Date(),
+      };
+      
+      // Add the message first
+      setMessages([greetingMessage]);
+      
+      // Generate speech audio from the greeting
+      try {
+        const audioBlob = await generateSpeech(greetingText);
+        const audioUrlValue = URL.createObjectURL(audioBlob);
+        setAudioUrl(audioUrlValue);
+      } catch (error) {
+        console.error('Failed to generate speech for greeting:', error);
+        // Continue without audio - message will still appear
+      }
+    } catch (error) {
+      console.error('Failed to initialize greeting:', error);
+      // Don't show error to user, just continue without greeting
+    } finally {
+      setIsLoading(false);
+    }
+  }, [messages.length]);
+
+  const handleEndCall = useCallback(async (patientId: string): Promise<{ closingMessage: string; summary: string }> => {
+    setIsLoading(true);
+    try {
+      // Prepare messages for summary
+      const chatMessages = messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+      
+      // Call end call endpoint
+      const result = await endCall(chatMessages, patientId);
+      
+      // Add closing message to chat
+      const closingId = generateId();
+      const closingMessage: Message = {
+        id: closingId,
+        role: 'assistant',
+        content: result.closingMessage,
+        createdAt: new Date(),
+      };
+      setMessages((prev) => [...prev, closingMessage]);
+      
+      // Generate speech for closing message
+      try {
+        const audioBlob = await generateSpeech(result.closingMessage);
+        const audioUrlValue = URL.createObjectURL(audioBlob);
+        setAudioUrl(audioUrlValue);
+      } catch (error) {
+        console.error('Failed to generate speech for closing message:', error);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Failed to end call:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [messages]);
+
   const clearMessages = useCallback(() => {
     setMessages([]);
     // Clean up audio URL
@@ -87,5 +166,5 @@ export function useChat(patientId: string) {
     }
   }, [audioUrl]);
 
-  return { messages, sendMessage, isLoading, clearMessages, audioUrl };
+  return { messages, sendMessage, isLoading, clearMessages, audioUrl, initializeGreeting, handleEndCall };
 }
