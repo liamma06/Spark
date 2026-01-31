@@ -1,4 +1,10 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+} from "react-router-dom";
 import { useAppStore } from "./stores/appStore";
 
 // Pages
@@ -8,6 +14,7 @@ import { PatientChat } from "./pages/patient/Chat";
 import { ProviderDashboard } from "./pages/provider/Dashboard";
 import { PatientDetail } from "./pages/provider/PatientDetail";
 import { RegisterPage } from "./pages/Signup";
+import { useEffect } from "react";
 
 // Role-based route protection
 function RoleRoute({
@@ -18,6 +25,16 @@ function RoleRoute({
   children: React.ReactNode;
 }) {
   const { role: currentRole } = useAppStore();
+  const nav = useNavigate();
+  useEffect(() => {
+    const checkAuth = async () => {
+      const res = await fetch("http://localhost:8000/auth/getuser");
+      if (!res.ok) {
+        nav("/");
+      }
+    };
+    checkAuth();
+  }, [nav]);
 
   if (currentRole !== role) {
     return <Navigate to="/" replace />;
