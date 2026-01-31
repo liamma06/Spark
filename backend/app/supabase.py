@@ -2,6 +2,7 @@
 import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from fastapi.responses import JSONResponse
 
 # Load environment variables
 load_dotenv()
@@ -42,13 +43,13 @@ def sign_up(email: str, password: str, full_name: str, role: str) -> dict:
         })
         
         if response.user:
-            print(f"✅ Sign up successful! User ID: {response.user.id}")
+            print(f"Sign up successful! User ID: {response.user.id}")
             print(f"Email: {response.user.email}")
             print(f"Name: {response.user.user_metadata.get('full_name')}")
             print(f"Role: {response.user.user_metadata.get('role')}")
             # Check if email confirmation is required
             if not response.session:
-                print("⚠️  Please check your email to confirm your account")
+                print("Please check your email to confirm your account")
             
             return {
                 "success": True,
@@ -62,7 +63,7 @@ def sign_up(email: str, password: str, full_name: str, role: str) -> dict:
             }
             
     except Exception as e:
-        print(f"❌ Sign up error: {str(e)}")
+        print(f"Sign up error: {str(e)}")
         return {
             "success": False,
             "error": str(e)
@@ -94,23 +95,28 @@ def sign_in(email: str, password: str) -> dict:
             print(f"Role: {response.user.user_metadata.get('role')}")
             print(f"Access Token: {response.session.access_token[:20]}...")
             
-            return {
-                "success": True,
-                "user": response.user,
-                "session": response.session
-            }
+            return JSONResponse(
+                content={
+                    "msg": "Log in success"
+                },
+                status_code=200
+            )
         else:
-            return {
-                "success": False,
-                "error": "Sign in failed"
-            }
+            return JSONResponse(
+                content={
+                    "msg": "Sign in failed"
+                },
+                status_code=400
+            )
             
     except Exception as e:
-        print(f"❌ Sign in error: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        
+        return JSONResponse(
+            content = {
+                "msg": str(e)
+            },
+            status_code=400,
+        )
 
 
 def sign_out() -> dict:
@@ -122,15 +128,19 @@ def sign_out() -> dict:
     """
     try:
         supabase.auth.sign_out()
-        print("✅ Signed out successfully")
-        return {"success": True}
-        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "msg": "Successfully ignored"
+            }
+        )
     except Exception as e:
-        print(f"❌ Sign out error: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return JSONResponse(
+            status_code=400,
+            content={
+                "msg": f"Error while logging out: {e}"
+            }
+        )
 
 
 def get_current_user() -> dict:
@@ -151,10 +161,12 @@ def get_current_user() -> dict:
             }
         else:
             print("No user currently signed in")
-            return {
-                "success": False,
-                "error": "No authenticated user"
-            }
+            return JSONResponse(
+                content={
+                    "msg": "No user currently "
+                },
+                status_code=400
+            )
             
     except Exception as e:
         print(f"❌ Error getting user: {str(e)}")

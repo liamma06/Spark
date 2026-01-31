@@ -3,12 +3,28 @@ from datetime import datetime
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+
+from fastapi.responses import StreamingResponse, Response, JSONResponse
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from app.supabase import sign_up
 from app.cohere_chat import get_system_prompt, assess_risk, stream_chat
 from app.tts import handle_tts_request
+
+from app.tts import text_to_speech
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
+from dotenv import load_dotenv
+from app.supabase import (
+    sign_up as auth_sign_up,
+    sign_in as auth_sign_in,
+    sign_out as auth_sign_out,
+    get_current_user as auth_get_current_user,
+)
 from app.doctors import (
     create_doctor as doctors_create,
     get_my_patients as doctors_get_my_patients,
@@ -28,6 +44,11 @@ from app.alerts import (
     create_alert as alerts_create_alert,
 )
 
+from app.timeline import (
+    get_timeline as timeline_get_timeline
+)
+
+# Load environment variables
 load_dotenv()
 
 app = FastAPI(title="CareBridge API")
@@ -151,12 +172,30 @@ def health_check():
 
 # Login and Signup Routes 
 
-@app.post("/signup")
+@app.post("/auth/signup")
 def read_root(email: str, password: str, full_name: str, role: str):
-    result = sign_up(email, password, full_name, role)
+    result = auth_sign_up(email, password, full_name, role)
     return result
 
 #Cohere Chats 
+@app.post("/auth/signin")
+def sign_in(email: str, password: str):
+    res = auth_sign_in(email=email, password=password)
+    
+    return res
+
+@app.post("/auth/sign_out")
+def sign_out():
+    res = auth_sign_out()
+
+    return res
+
+@app.get("/auth/getuser")
+def get_current_user():
+    res = auth_get_current_user()
+    return res
+    
+# --- Chat ---
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
@@ -241,10 +280,14 @@ def create_patient(body: CreatePatientBody):
 # --- Timeline (in-memory for now) ---
 
 @app.get("/api/timeline")
-def get_timeline(patientId: Optional[str] = None):
+def timeline(patientId: Optional[str] = None):
     if patientId:
         return [e for e in timeline_db if e["patientId"] == patientId]
     return timeline_db
+
+@app.get("/api/get_timeline")
+def get_timeline():
+    timeline_get_timeline("thing")
 
 # --- Alerts (Supabase: app.alerts) ---
 
