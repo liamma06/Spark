@@ -7,7 +7,8 @@ from datetime import datetime
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, Response
+
+from fastapi.responses import StreamingResponse, Response, JSONRespone
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from app.supabase import sign_up
@@ -19,7 +20,12 @@ logger = logging.getLogger(__name__)
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
-from app.supabase import sign_up
+from app.supabase import (
+    sign_up as auth_sign_up,
+    sign_in as auth_sign_in,
+    sign_out as auth_sign_out,
+    get_current_user as auth_get_current_user,
+)
 from app.doctors import (
     create_doctor as doctors_create,
     get_my_patients as doctors_get_my_patients,
@@ -37,6 +43,10 @@ from app.alerts import (
     get_alerts as alerts_get_alerts,
     acknowledge_alert as alerts_acknowledge_alert,
     create_alert as alerts_create_alert,
+)
+
+from app.timeline import (
+    get_timeline as timeline_get_timeline
 )
 
 # Load environment variables
@@ -165,11 +175,28 @@ def health_check():
 
 # --- Auth (Supabase) ---
 
-@app.post("/signup")
+@app.post("/auth/signup")
 def read_root(email: str, password: str, full_name: str, role: str):
-    result = sign_up(email, password, full_name, role)
+    result = auth_sign_up(email, password, full_name, role)
     return result
 
+@app.post("/auth/signin")
+def sign_in(email: str, password: str):
+    res = auth_sign_in(email=email, password=password)
+    
+    return res
+
+@app.post("/auth/sign_out")
+def sign_out():
+    res = auth_sign_out()
+
+    return res
+
+@app.get("/auth/getuser")
+def get_current_user():
+    res = auth_get_current_user()
+    return res
+    
 # --- Chat ---
 
 @app.post("/api/chat")
@@ -313,10 +340,14 @@ def create_patient(body: CreatePatientBody):
 # --- Timeline (in-memory for now) ---
 
 @app.get("/api/timeline")
-def get_timeline(patientId: Optional[str] = None):
+def timeline(patientId: Optional[str] = None):
     if patientId:
         return [e for e in timeline_db if e["patientId"] == patientId]
     return timeline_db
+
+@app.get("/api/get_timeline")
+def get_timeline():
+    timeline_get_timeline("thing")
 
 # --- Alerts (Supabase: app.alerts) ---
 
