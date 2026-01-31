@@ -1,20 +1,62 @@
 import { useState, useRef, useEffect } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
+import { Environment } from '@react-three/drei';
 import { useChat } from '../hooks/useChat';
 import { cn, formatDate } from '../lib/utils';
+import { DoctorModel } from './DoctorModel';
 
 interface ChatProps {
   patientId: string;
 }
 
+// Camera component to focus on the doctor's upper torso
+function CameraFocus() {
+  const { camera } = useThree();
+  
+  useEffect(() => {
+    // Model is at [0, -1, 0], so waist is at Y=0, upper torso is at Y=0.3-0.6
+    camera.position.set(0, 0.6, 1.1);
+    camera.lookAt(0, 0.6, 0); // Look at upper torso area (above waist)
+    camera.updateProjectionMatrix();
+  }, [camera]);
+  
+  return null;
+}
+
 export function Chat({ patientId }: ChatProps) {
   const { messages, sendMessage, isLoading } = useChat(patientId);
   const [input, setInput] = useState('');
+  const [triggerAnimation, setTriggerAnimation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastAssistantMessageId = useRef<string | null>(null);
 
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Trigger animation when AI starts responding (once per new assistant message)
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (
+      lastMessage &&
+      lastMessage.role === 'assistant' &&
+      lastMessage.id !== lastAssistantMessageId.current &&
+      lastMessage.content.length > 0 // Trigger when content first appears
+    ) {
+      console.log('Triggering animation for message:', lastMessage.id);
+      lastAssistantMessageId.current = lastMessage.id;
+      // Reset trigger first, then set to true to ensure the change is detected
+      setTriggerAnimation(false);
+      setTimeout(() => {
+        setTriggerAnimation(true);
+      }, 50);
+    }
+  }, [messages]);
+
+  const handleAnimationComplete = () => {
+    setTriggerAnimation(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +66,27 @@ export function Chat({ patientId }: ChatProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-xl shadow-sm border border-slate-200">
+    <div className="flex h-full gap-4">
+      {/* 3D Doctor Model - Left Side */}
+      <div className="w-1/3 bg-gradient-to-br from-sky-50 to-blue-50 rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <Canvas
+          camera={{ position: [0, 0.4, 3.5], fov: 55 }}
+          style={{ width: '100%', height: '100%' }}
+        >
+          <CameraFocus />
+          <ambientLight intensity={0.6} />
+          <directionalLight position={[5, 5, 5]} intensity={0.8} />
+          <pointLight position={[-5, 0, -5]} intensity={0.4} />
+          <DoctorModel 
+            playAnimation={triggerAnimation} 
+            onAnimationComplete={handleAnimationComplete}
+          />
+          <Environment preset="sunset" />
+        </Canvas>
+      </div>
+
+      {/* Chat Interface - Right Side */}
+      <div className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200">
       {/* Header */}
       <div className="px-6 py-4 border-b border-slate-200">
         <h2 className="text-lg font-semibold text-slate-800">Care Companion</h2>
@@ -104,6 +166,7 @@ export function Chat({ patientId }: ChatProps) {
           </button>
         </div>
       </form>
+      </div>
     </div>
   );
 }
