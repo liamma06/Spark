@@ -33,6 +33,11 @@ from app.patients import (
     create_patient as patients_create,
     update_patient_risk as patients_update_risk,
 )
+from app.alerts import (
+    get_alerts as alerts_get_alerts,
+    acknowledge_alert as alerts_acknowledge_alert,
+    create_alert as alerts_create_alert,
+)
 
 # Load environment variables
 load_dotenv()
@@ -54,73 +59,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ============== In-Memory Data Store ==============
+# ============== In-Memory (timeline only; alerts use Supabase) ==============
 
-# Timeline events
-timeline_db = [
-    {
-        "id": "evt-1",
-        "patientId": "patient-maria",
-        "type": "symptom",
-        "title": "Reported chest tightness",
-        "details": "Patient described tightness in chest area, especially during morning hours",
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "evt-2",
-        "patientId": "patient-maria",
-        "type": "symptom",
-        "title": "Shortness of breath",
-        "details": "Difficulty breathing when climbing stairs",
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "evt-3",
-        "patientId": "patient-maria",
-        "type": "medication",
-        "title": "Metformin refill",
-        "details": "Monthly diabetes medication refilled",
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "evt-4",
-        "patientId": "patient-james",
-        "type": "symptom",
-        "title": "Sleep difficulties",
-        "details": "Having trouble falling asleep, racing thoughts at night",
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "evt-5",
-        "patientId": "patient-sarah",
-        "type": "symptom",
-        "title": "Mild headache",
-        "details": "Occasional tension headache, likely stress-related",
-        "createdAt": datetime.now().isoformat(),
-    },
-]
-
-# Alerts
-alerts_db = [
-    {
-        "id": "alert-1",
-        "patientId": "patient-maria",
-        "severity": "critical",
-        "message": "Chest tightness reported - potential cardiac concern",
-        "reasoning": "Patient is 67 years old with diabetes and hypertension history. Combination of chest tightness and shortness of breath requires urgent evaluation.",
-        "acknowledged": False,
-        "createdAt": datetime.now().isoformat(),
-    },
-    {
-        "id": "alert-2",
-        "patientId": "patient-james",
-        "severity": "warning",
-        "message": "Persistent sleep issues may require intervention",
-        "reasoning": "Patient has reported sleep difficulties for over a week. Combined with existing anxiety diagnosis, may need medication adjustment.",
-        "acknowledged": False,
-        "createdAt": datetime.now().isoformat(),
-    },
-]
+timeline_db = []
 
 # ============== Risk Assessment ==============
 
@@ -293,17 +234,16 @@ async def chat(request: ChatRequest):
                     except HTTPException:
                         pass
                 
-                # Add to timeline
-                event_id = f"evt-{len(timeline_db) + 1}"
+                # Add to timeline (in-memory for now)
+                details = last_message[:100] + "..." if len(last_message) > 100 else last_message
                 timeline_db.append({
-                    "id": event_id,
+                    "id": f"evt-{len(timeline_db) + 1}",
                     "patientId": request.patientId,
                     "type": "chat",
                     "title": "AI conversation",
-                    "details": last_message[:100] + "..." if len(last_message) > 100 else last_message,
+                    "details": details,
                     "createdAt": datetime.now().isoformat(),
                 })
-                    
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -370,7 +310,7 @@ def create_patient(body: CreatePatientBody):
         risk_level=body.risk_level,
     )
 
-# --- Timeline ---
+# --- Timeline (in-memory for now) ---
 
 @app.get("/api/timeline")
 def get_timeline(patientId: Optional[str] = None):
@@ -378,21 +318,20 @@ def get_timeline(patientId: Optional[str] = None):
         return [e for e in timeline_db if e["patientId"] == patientId]
     return timeline_db
 
-# --- Alerts ---
+# --- Alerts (Supabase: app.alerts) ---
 
 @app.get("/api/alerts")
-def get_alerts(patientId: Optional[str] = None):
-    if patientId:
-        return [a for a in alerts_db if a["patientId"] == patientId]
-    return alerts_db
+def get_alerts(patientId: Optional[str] = None, doctorId: Optional[str] = None):
+    """
+    List alerts scoped by patient or doctor. Doctors only see alerts for their assigned patients.
+    Pass patientId (one patient's alerts) or doctorId (alerts for all of that doctor's patients).
+    If neither is passed, returns empty list.
+    """
+    return alerts_get_alerts(patient_id=patientId, doctor_id=doctorId)
 
 @app.post("/api/alerts/{alert_id}/acknowledge")
 def acknowledge_alert(alert_id: str):
-    for alert in alerts_db:
-        if alert["id"] == alert_id:
-            alert["acknowledged"] = True
-            return alert
-    raise HTTPException(status_code=404, detail="Alert not found")
+    return alerts_acknowledge_alert(alert_id)
 
 # --- Doctors (Supabase: app.doctors) ---
 
