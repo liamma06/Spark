@@ -5,10 +5,10 @@ import traceback
 import cohere
 from datetime import datetime
 from typing import Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from app.supabase import sign_up
 from app.tts import text_to_speech
@@ -16,10 +16,6 @@ from app.tts import text_to_speech
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
-from dotenv import load_dotenv
-from app.supabase import sign_up
 from app.doctors import (
     create_doctor as doctors_create,
     get_my_patients as doctors_get_my_patients,
@@ -33,6 +29,11 @@ from app.patients import (
     create_patient as patients_create,
     update_patient_risk as patients_update_risk,
 )
+from app.timeline import (
+    get_timeline as timeline_get_timeline,
+    add_event as timeline_add_event,
+)
+from app.extract import extract_timeline_events
 
 # Load environment variables
 load_dotenv()
@@ -188,6 +189,28 @@ class PatientDoctorLink(BaseModel):
         populate_by_name = True
 
 
+class ChatSummaryRequest(BaseModel):
+    messages: list[ChatMessage]
+    patientId: Optional[str] = None
+
+
+class ChatCloseRequest(BaseModel):
+    messages: list[ChatMessage]
+    patientId: Optional[str] = None
+
+
+class ChatSummaryResponse(BaseModel):
+    summary: str
+
+
+class ChatCloseResponse(BaseModel):
+    closingMessage: str = Field(..., alias="closingMessage")
+    summary: str
+
+    class Config:
+        populate_by_name = True
+
+
 # ============== System Prompt ==============
 
 SYSTEM_PROMPT = """You are CareBridge, a caring and empathetic AI health companion. Your role is to:
@@ -206,6 +229,11 @@ Important guidelines:
 - **Keep responses SHORT and concise - aim for 2-3 sentences maximum**
 - Be direct and to the point while remaining caring
 - Prioritize brevity without losing empathy
+
+Timeline tracking:
+- When patients mention symptoms, especially with dates (e.g., "chest pain started on January 31"), acknowledge this clearly
+- When appointments, medications, or other health events are mentioned, acknowledge them naturally
+- This helps build an accurate timeline of the patient's health journey
 
 Remember: You are a bridge to care, not a replacement for professional medical advice. Keep your responses brief to ensure quick, helpful interactions."""
 
@@ -231,8 +259,95 @@ def read_root(email: str, password: str, full_name: str, role: str):
 
 # --- Chat ---
 
+async def _process_timeline_events_async(
+    patient_id: str,
+    messages: list[dict],
+    full_response: str,
+    last_message: str
+):
+    """Background task to extract timeline events and assess risk"""
+    try:
+        # Build conversation messages for extraction (include the assistant's response)
+        extraction_messages = []
+        for msg in messages:
+            extraction_messages.append({
+                "role": msg["role"],
+                "content": msg["content"]
+            })
+        # Add the assistant's response
+        extraction_messages.append({
+            "role": "assistant",
+            "content": full_response
+        })
+        
+        # Extract timeline events
+        extracted_events = extract_timeline_events(extraction_messages)
+        
+        # Create timeline events in Supabase
+        for event in extracted_events:
+            try:
+                # Build details dict with date if available
+                details = event.get("details", {})
+                if event.get("date"):
+                    details["date"] = event["date"]
+                
+                timeline_add_event(
+                    patient_id=patient_id,
+                    type=event["type"],
+                    title=event["title"],
+                    details=details
+                )
+                logger.info(f"Created timeline event: {event['type']} - {event['title']}")
+            except Exception as e:
+                logger.error(f"Failed to create timeline event: {e}", exc_info=True)
+        
+        # If no structured events were extracted, still log the conversation
+        if not extracted_events:
+            try:
+                timeline_add_event(
+                    patient_id=patient_id,
+                    type="chat",
+                    title="AI conversation",
+                    details={"text": last_message[:200] + "..." if len(last_message) > 200 else last_message}
+                )
+            except Exception as e:
+                logger.error(f"Failed to create chat timeline event: {e}", exc_info=True)
+        
+        # Assess risk and create alerts if needed
+        risk_level = assess_risk(last_message)
+        if risk_level == "high":
+            # Create alert (still in-memory for now; alerts module later)
+            alert_id = f"alert-{len(alerts_db) + 1}"
+            alerts_db.append({
+                "id": alert_id,
+                "patientId": patient_id,
+                "severity": "critical",
+                "message": f"High-risk symptoms reported: \"{last_message[:50]}...\"",
+                "reasoning": "Keywords indicating potentially serious symptoms were detected.",
+                "acknowledged": False,
+                "createdAt": datetime.now().isoformat(),
+            })
+            # Update patient risk level in Supabase
+            try:
+                patients_update_risk(patient_id, "high")
+            except HTTPException:
+                pass
+                
+    except Exception as e:
+        logger.error(f"Error in background timeline processing: {e}", exc_info=True)
+        # Fallback: still create a basic chat event
+        try:
+            timeline_add_event(
+                patient_id=patient_id,
+                type="chat",
+                title="AI conversation",
+                details={"text": last_message[:200] + "..." if len(last_message) > 200 else last_message}
+            )
+        except Exception:
+            pass
+
 @app.post("/api/chat")
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
     """Stream chat responses from Cohere"""
     
     # Add patient context to system prompt (from Supabase)
@@ -272,37 +387,18 @@ async def chat(request: ChatRequest):
                     full_response += text
                     yield text
             
-            # After streaming, assess risk and create alerts if needed
+            # Schedule timeline event extraction and risk assessment as background task
+            # This runs after the response is sent, so it doesn't delay the user
             if request.patientId:
-                risk_level = assess_risk(last_message)
-                if risk_level == "high":
-                    # Create alert (still in-memory for now; timeline/alerts modules later)
-                    alert_id = f"alert-{len(alerts_db) + 1}"
-                    alerts_db.append({
-                        "id": alert_id,
-                        "patientId": request.patientId,
-                        "severity": "critical",
-                        "message": f"High-risk symptoms reported: \"{last_message[:50]}...\"",
-                        "reasoning": "Keywords indicating potentially serious symptoms were detected.",
-                        "acknowledged": False,
-                        "createdAt": datetime.now().isoformat(),
-                    })
-                    # Update patient risk level in Supabase
-                    try:
-                        patients_update_risk(request.patientId, "high")
-                    except HTTPException:
-                        pass
-                
-                # Add to timeline
-                event_id = f"evt-{len(timeline_db) + 1}"
-                timeline_db.append({
-                    "id": event_id,
-                    "patientId": request.patientId,
-                    "type": "chat",
-                    "title": "AI conversation",
-                    "details": last_message[:100] + "..." if len(last_message) > 100 else last_message,
-                    "createdAt": datetime.now().isoformat(),
-                })
+                # Convert messages to dict format for background task
+                messages_dict = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+                background_tasks.add_task(
+                    _process_timeline_events_async,
+                    request.patientId,
+                    messages_dict,
+                    full_response,
+                    last_message
+                )
                     
         except Exception as e:
             import traceback
@@ -310,6 +406,159 @@ async def chat(request: ChatRequest):
             yield f"I'm sorry, I encountered an error: {str(e)}"
     
     return StreamingResponse(generate(), media_type="text/plain")
+
+# --- Helper function for summary generation ---
+
+async def _generate_summary(messages: list[ChatMessage]) -> str:
+    """Helper function to generate a chat summary"""
+    summary_prompt = """You are a medical assistant summarizing a patient conversation. Create a concise summary that includes:
+1. Key symptoms discussed
+2. Main concerns raised by the patient
+3. Any recommendations or guidance provided
+4. Important health information mentioned
+
+Keep the summary clear, organized, and professional. Focus on actionable information."""
+    
+    cohere_messages = [{"role": "system", "content": summary_prompt}]
+    for msg in messages:
+        cohere_messages.append({
+            "role": msg.role,
+            "content": msg.content
+        })
+    
+    # Add a final instruction message
+    cohere_messages.append({
+        "role": "user",
+        "content": "Please provide a concise summary of this conversation."
+    })
+    
+    # Generate summary using Cohere
+    response = co.chat(
+        model="command-r-plus-08-2024",
+        messages=cohere_messages,
+    )
+    
+    # Handle Cohere response - content can be a list or have text attribute
+    content = response.message.content
+    if isinstance(content, list):
+        # If content is a list, extract text from each item
+        text_parts = []
+        for item in content:
+            if isinstance(item, dict):
+                # If item is a dict, try to get 'text' key
+                text_parts.append(item.get('text', str(item)))
+            elif hasattr(item, 'text'):
+                text_parts.append(item.text)
+            elif isinstance(item, str):
+                text_parts.append(item)
+            else:
+                text_parts.append(str(item))
+        return ' '.join(text_parts).strip()
+    elif isinstance(content, dict):
+        # If content is a dict, try to get 'text' key
+        return content.get('text', str(content)).strip()
+    elif hasattr(content, 'text'):
+        return content.text.strip()
+    elif isinstance(content, str):
+        return content.strip()
+    else:
+        # Fallback: try to convert to string
+        return str(content).strip()
+
+# --- Chat Summary ---
+
+@app.post("/api/chat/summary", response_model=ChatSummaryResponse)
+async def generate_chat_summary(request: ChatSummaryRequest):
+    """Generate a concise summary of the chat conversation"""
+    try:
+        summary = await _generate_summary(request.messages)
+        return ChatSummaryResponse(summary=summary)
+    except Exception as e:
+        logger.error(f"Error generating chat summary: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to generate summary: {str(e)}")
+
+# --- Chat Close ---
+
+@app.post("/api/chat/close", response_model=ChatCloseResponse)
+async def close_chat(request: ChatCloseRequest):
+    """Generate closing message and summary, then store summary in timeline"""
+    try:
+        # Generate closing message using Cohere
+        closing_prompt = """You are CareBridge, a caring and empathetic AI health companion. The patient is ending their chat session. Generate a warm, professional closing message that:
+1. Thanks them for the conversation
+2. Reassures them that their concerns have been noted
+3. Encourages them to seek professional medical care if needed
+4. Wishes them well
+
+Keep it brief (2-3 sentences) and warm."""
+        
+        cohere_messages = [{"role": "system", "content": closing_prompt}]
+        for msg in request.messages:
+            cohere_messages.append({
+                "role": msg.role,
+                "content": msg.content
+            })
+        
+        # Add closing instruction
+        cohere_messages.append({
+            "role": "user",
+            "content": "Please provide a warm closing message for this conversation."
+        })
+        
+        # Generate closing message
+        closing_response = co.chat(
+            model="command-r-plus-08-2024",
+            messages=cohere_messages,
+        )
+        
+        # Handle Cohere response - content can be a list or have text attribute
+        content = closing_response.message.content
+        if isinstance(content, list):
+            # If content is a list, extract text from each item
+            text_parts = []
+            for item in content:
+                if isinstance(item, dict):
+                    # If item is a dict, try to get 'text' key
+                    text_parts.append(item.get('text', str(item)))
+                elif hasattr(item, 'text'):
+                    text_parts.append(item.text)
+                elif isinstance(item, str):
+                    text_parts.append(item)
+                else:
+                    text_parts.append(str(item))
+            closing_message = ' '.join(text_parts).strip()
+        elif isinstance(content, dict):
+            # If content is a dict, try to get 'text' key
+            closing_message = content.get('text', str(content)).strip()
+        elif hasattr(content, 'text'):
+            closing_message = content.text.strip()
+        elif isinstance(content, str):
+            closing_message = content.strip()
+        else:
+            # Fallback: try to convert to string
+            closing_message = str(content).strip()
+        
+        # Generate summary using helper function
+        summary = await _generate_summary(request.messages)
+        
+        # Store summary in timeline if patientId is provided
+        if request.patientId:
+            try:
+                timeline_add_event(
+                    patient_id=request.patientId,
+                    type="chat",
+                    title="Chat session summary",
+                    details={"summary": summary, "closing_message": closing_message}
+                )
+                logger.info(f"Stored chat summary for patient: {request.patientId}")
+            except Exception as e:
+                logger.error(f"Failed to store chat summary in timeline: {e}", exc_info=True)
+                # Continue even if storage fails
+        
+        return ChatCloseResponse(closingMessage=closing_message, summary=summary)
+    except Exception as e:
+        logger.error(f"Error closing chat: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to close chat: {str(e)}")
 
 # --- Text-to-Speech ---
 
@@ -374,9 +623,24 @@ def create_patient(body: CreatePatientBody):
 
 @app.get("/api/timeline")
 def get_timeline(patientId: Optional[str] = None):
-    if patientId:
-        return [e for e in timeline_db if e["patientId"] == patientId]
-    return timeline_db
+    """Get timeline events for a patient or all patients"""
+    try:
+        events = timeline_get_timeline(patientId)
+        # Convert snake_case keys to camelCase for frontend compatibility
+        return [
+            {
+                "id": e.get("id"),
+                "patientId": e.get("patient_id"),
+                "type": e.get("type"),
+                "title": e.get("title"),
+                "details": e.get("details"),
+                "createdAt": e.get("created_at"),
+            }
+            for e in events
+        ]
+    except Exception as e:
+        logger.error(f"Error getting timeline: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 # --- Alerts ---
 

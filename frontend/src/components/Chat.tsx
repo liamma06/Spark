@@ -7,6 +7,7 @@ import { DoctorModel } from './DoctorModel';
 
 interface ChatProps {
   patientId: string;
+  onEndChatReady?: (endChatFn: () => Promise<{ closingMessage: string; summary: string } | null>) => void;
 }
 
 // Camera component to focus on the doctor's upper torso
@@ -23,8 +24,15 @@ function CameraFocus() {
   return null;
 }
 
-export function Chat({ patientId }: ChatProps) {
-  const { messages, sendMessage, isLoading, audioUrl } = useChat(patientId);
+export function Chat({ patientId, onEndChatReady }: ChatProps) {
+  const { messages, sendMessage, isLoading, audioUrl, endChat } = useChat(patientId);
+  
+  // Expose endChat function to parent
+  useEffect(() => {
+    if (onEndChatReady && endChat) {
+      onEndChatReady(endChat);
+    }
+  }, [onEndChatReady, endChat]);
   const [input, setInput] = useState('');
   const [triggerAnimation, setTriggerAnimation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);

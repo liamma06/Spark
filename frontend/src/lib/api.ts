@@ -62,6 +62,42 @@ export async function* streamChat(
   }
 }
 
+// Chat Summary API
+export async function generateChatSummary(
+  messages: { role: string; content: string }[],
+  patientId: string
+): Promise<{ summary: string }> {
+  const res = await fetch(`${API_BASE}/chat/summary`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages, patientId }),
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to generate chat summary');
+  }
+
+  return res.json();
+}
+
+// Chat Close API - Generate closing message and summary
+export async function closeChat(
+  messages: { role: string; content: string }[],
+  patientId: string
+): Promise<{ closingMessage: string; summary: string }> {
+  const res = await fetch(`${API_BASE}/chat/close`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages, patientId }),
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to close chat');
+  }
+
+  return res.json();
+}
+
 // TTS API - Generate speech audio from text
 export async function generateSpeech(text: string, voiceId?: string): Promise<Blob> {
   const res = await fetch(`${API_BASE}/tts`, {
