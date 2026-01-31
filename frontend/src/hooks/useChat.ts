@@ -1,11 +1,12 @@
 import { useState, useCallback } from 'react';
-import { streamChat } from '../lib/api';
+import { streamChat, generateSpeech } from '../lib/api';
 import { generateId } from '../lib/utils';
 import type { Message } from '../types';
 
 export function useChat(patientId: string) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   const sendMessage = useCallback(async (content: string) => {
     // Add user message
@@ -41,6 +42,18 @@ export function useChat(patientId: string) {
           )
         );
       }
+      
+      // Generate speech audio from the complete response
+      if (fullContent.trim()) {
+        try {
+          const audioBlob = await generateSpeech(fullContent);
+          const url = URL.createObjectURL(audioBlob);
+          setAudioUrl(url);
+        } catch (error) {
+          console.error('Failed to generate speech:', error);
+          // Continue without audio - don't fail the chat
+        }
+      }
     } catch (error) {
       console.error('Chat error:', error);
       // Add error message
@@ -60,7 +73,12 @@ export function useChat(patientId: string) {
 
   const clearMessages = useCallback(() => {
     setMessages([]);
-  }, []);
+    // Clean up audio URL
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+      setAudioUrl(null);
+    }
+  }, [audioUrl]);
 
-  return { messages, sendMessage, isLoading, clearMessages };
+  return { messages, sendMessage, isLoading, clearMessages, audioUrl };
 }

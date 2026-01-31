@@ -24,11 +24,13 @@ function CameraFocus() {
 }
 
 export function Chat({ patientId }: ChatProps) {
-  const { messages, sendMessage, isLoading } = useChat(patientId);
+  const { messages, sendMessage, isLoading, audioUrl } = useChat(patientId);
   const [input, setInput] = useState('');
   const [triggerAnimation, setTriggerAnimation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastAssistantMessageId = useRef<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const lastAudioUrl = useRef<string | null>(null);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -53,6 +55,43 @@ export function Chat({ patientId }: ChatProps) {
       }, 50);
     }
   }, [messages]);
+
+  // Play audio when new audio URL is available
+  useEffect(() => {
+    if (audioUrl && audioUrl !== lastAudioUrl.current) {
+      lastAudioUrl.current = audioUrl;
+      
+      // Clean up previous audio element
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      
+      // Create and play new audio
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      
+      audio.play().catch((error) => {
+        console.error('Failed to play audio:', error);
+      });
+      
+      // Clean up when audio finishes
+      audio.addEventListener('ended', () => {
+        if (audioRef.current === audio) {
+          audioRef.current = null;
+        }
+        URL.revokeObjectURL(audioUrl);
+      });
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, [audioUrl]);
 
   const handleAnimationComplete = () => {
     setTriggerAnimation(false);
