@@ -81,42 +81,24 @@ def sign_in(email: str, password: str) -> dict:
     Returns:
         dict: Authentication response with user data and session
     """
-    try:
-        response = supabase.auth.sign_in_with_password({
-            "email": email,
-            "password": password
-        })
+    response = supabase.auth.sign_in_with_password({
+        "email": email,
+        "password": password
+    })
+    
+    if response.user and response.session:
+        print(f"✅ Sign in successful! Welcome back!")
+        print(f"User ID: {response.user.id}")
+        print(f"Email: {response.user.email}")
+        print(f"Name: {response.user.user_metadata.get('full_name')}")
+        print(f"Role: {response.user.user_metadata.get('role')}")
+        print(f"Access Token: {response.session.access_token[:20]}...")
         
-        if response.user and response.session:
-            print(f"✅ Sign in successful! Welcome back!")
-            print(f"User ID: {response.user.id}")
-            print(f"Email: {response.user.email}")
-            print(f"Name: {response.user.user_metadata.get('full_name')}")
-            print(f"Role: {response.user.user_metadata.get('role')}")
-            print(f"Access Token: {response.session.access_token[:20]}...")
-            
-            return JSONResponse(
-                content={
-                    "msg": "Log in success"
-                },
-                status_code=200
-            )
-        else:
-            return JSONResponse(
-                content={
-                    "msg": "Sign in failed"
-                },
-                status_code=400
-            )
-            
-    except Exception as e:
         
-        return JSONResponse(
-            content = {
-                "msg": str(e)
-            },
-            status_code=400,
-        )
+        return response.user.id
+    else:
+        raise Exception()
+        
 
 
 def sign_out() -> dict:

@@ -12,6 +12,7 @@ from app.cohere_chat import get_system_prompt, assess_risk, stream_chat
 from app.tts import handle_tts_request
 
 from app.tts import text_to_speech
+import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -157,6 +158,21 @@ class TTSRequest(BaseModel):
     class Config:
         populate_by_name = True
 
+class PatientSignUp(BaseModel):
+    email: str
+    password: str 
+    address: str
+    name: str
+    age: int
+    conditions: list[str]
+
+class DoctorSignUp(BaseModel):
+    email: str
+    password: str 
+    speciality: str
+    name: str
+    bio: str
+
 # Basic Routes
 
 @app.get("/")
@@ -170,12 +186,51 @@ def read_root():
 def health_check():
     return {"status": "ok"}
 
-# Login and Signup Routes 
+# --------- AUTH ROUTES ------------------
 
-@app.post("/auth/signup")
-def read_root(email: str, password: str, full_name: str, role: str):
-    result = auth_sign_up(email, password, full_name, role)
-    return result
+@app.post("/auth/patient/signup")
+def patient_sign_up(body: PatientSignUp):
+    try:
+        # Sign in
+        clientUid = auth_sign_up(email=body.email, password=body.password, role="patient", full_name=body.name)
+
+        # Create 
+        return patients_create(
+            name=body.name,
+            age=body.age,
+            user_id=clientUid,
+            conditions=body.conditions,
+            # risk_level=body.risk_level,
+            address=body.address
+
+        )
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "msg": f"Error: {e}"
+            }
+        )
+@app.post("/auth/doctor/signup")
+def doctor_sign_up(body: DoctorSignUp):
+    try:
+        clientUid = auth_sign_up(email=body.email, password=body.password, role="doctor", full_name=body.name)
+
+        return doctors_create(
+            user_id=clientUid,
+            specialty=body.speciality,
+            bio=body.bio
+
+        )
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "msg": f"Error: {e}"
+            }
+        )
 
 #Cohere Chats 
 @app.post("/auth/signin")
