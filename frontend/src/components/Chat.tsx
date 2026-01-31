@@ -7,6 +7,8 @@ import { DoctorModel } from './DoctorModel';
 
 interface ChatProps {
   patientId: string;
+  onEndCall?: (result: { closingMessage: string; summary: string }) => void;
+  endCallRef?: React.MutableRefObject<(() => Promise<void>) | null>;
 }
 
 // Camera component to focus on the doctor's upper torso
@@ -23,8 +25,8 @@ function CameraFocus() {
   return null;
 }
 
-export function Chat({ patientId }: ChatProps) {
-  const { messages, sendMessage, isLoading, audioUrl } = useChat(patientId);
+export function Chat({ patientId, onEndCall, endCallRef }: ChatProps) {
+  const { messages, sendMessage, isLoading, audioUrl, initializeGreeting, handleEndCall } = useChat(patientId);
   const [input, setInput] = useState('');
   const [triggerAnimation, setTriggerAnimation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -32,6 +34,15 @@ export function Chat({ patientId }: ChatProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastAudioUrl = useRef<string | null>(null);
   const [currentAudioElement, setCurrentAudioElement] = useState<HTMLAudioElement | null>(null);
+  const greetingInitialized = useRef(false);
+
+  // Initialize greeting on mount
+  useEffect(() => {
+    if (!greetingInitialized.current) {
+      greetingInitialized.current = true;
+      initializeGreeting();
+    }
+  }, [initializeGreeting]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -117,6 +128,22 @@ export function Chat({ patientId }: ChatProps) {
     sendMessage(input.trim());
     setInput('');
   };
+
+  // Expose handleEndCall to parent via ref
+  useEffect(() => {
+    if (endCallRef) {
+      endCallRef.current = async () => {
+        try {
+          const result = await handleEndCall(patientId);
+          if (onEndCall) {
+            onEndCall(result);
+          }
+        } catch (error) {
+          console.error('Failed to end call:', error);
+        }
+      };
+    }
+  }, [handleEndCall, patientId, onEndCall, endCallRef]);
 
   return (
     <div className="flex h-full gap-4">
