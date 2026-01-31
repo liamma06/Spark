@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi.responses import StreamingResponse, Response, JSONRespone
+from fastapi.responses import StreamingResponse, Response, JSONResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from app.supabase import sign_up

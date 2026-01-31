@@ -163,7 +163,7 @@ def get_current_user() -> dict:
             print("No user currently signed in")
             return JSONResponse(
                 content={
-                    "msg": "Successfully ignored"
+                    "msg": "No user currently "
                 },
                 status_code=400
             )
