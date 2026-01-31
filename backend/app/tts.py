@@ -1,6 +1,7 @@
 import os
 import logging
-from elevenlabs import ElevenLabs
+from fastapi.responses import Response
+from elevenlabs.client import ElevenLabs
 from dotenv import load_dotenv
 
 # Configure logging
@@ -14,7 +15,8 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 
 # Default voice ID - using a professional, caring doctor voice
 # You can change this to any ElevenLabs voice ID
-DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Rachel - professional female voice
+DEFAULT_VOICE_ID = "TX3LPaxmHKxFdv7VOQHJ"  # Custom doctor voice
+# Alternative: "21m00Tcm4TlvDq8ikWAM" (Rachel - professional female voice)
 # Alternative: "pNInz6obpgDQGcFmaJgB" (Adam - professional male voice)
 
 def text_to_speech(text: str, voice_id: str = None) -> bytes:
@@ -80,3 +82,12 @@ def text_to_speech(text: str, voice_id: str = None) -> bytes:
         logger.error(f"TTS Exception: {error_msg}")
         logger.error(f"Exception type: {type(e).__name__}")
         raise Exception(error_msg) from e
+
+
+def handle_tts_request(text: str, voice_id: str | None = None) -> Response:
+    """
+    Generate speech from text and return a FastAPI Response (audio/mpeg).
+    Use this from the API route so main has no ElevenLabs-specific logic.
+    """
+    audio_bytes = text_to_speech(text, voice_id)
+    return Response(content=audio_bytes, media_type="audio/mpeg")

@@ -43,7 +43,6 @@ def create_patient(
     age: int,
     user_id: str | None = None,
     conditions: list | None = None,
-    risk_level: str = "low",
 ) -> dict:
     """
     Create a patient row in public.patients.
@@ -53,7 +52,6 @@ def create_patient(
         payload = {
             "name": name,
             "age": age,
-            "risk_level": risk_level,
             "conditions": conditions if conditions is not None else [],
         }
         if user_id is not None:
