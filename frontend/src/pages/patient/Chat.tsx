@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
 import { useAppStore } from '../../stores/appStore';
 import { Chat as ChatComponent } from '../../components/Chat';
 import { RoleToggle } from '../../components/RoleToggle';
@@ -121,7 +122,21 @@ export function PatientChat() {
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 shadow-xl max-h-[80vh] overflow-y-auto">
             <h3 className="text-xl font-semibold text-slate-800 mb-4">Chat Session Summary</h3>
             <div className="bg-slate-50 rounded-lg p-4 mb-6">
-              <p className="text-slate-700 whitespace-pre-wrap">{summary}</p>
+              <div className="text-slate-700">
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                    strong: ({ children }) => <strong className="font-semibold text-slate-800">{children}</strong>,
+                    ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                    li: ({ children }) => <li className="ml-2">{children}</li>,
+                    h1: ({ children }) => <h1 className="text-xl font-bold mb-2 mt-4 first:mt-0">{children}</h1>,
+                    h2: ({ children }) => <h2 className="text-lg font-bold mb-2 mt-4 first:mt-0">{children}</h2>,
+                    h3: ({ children }) => <h3 className="text-base font-bold mb-2 mt-4 first:mt-0">{children}</h3>,
+                  }}
+                >
+                  {summary}
+                </ReactMarkdown>
+              </div>
             </div>
             <div className="flex justify-end">
               <button
