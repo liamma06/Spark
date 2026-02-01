@@ -107,3 +107,24 @@ export async function signOut() {
 
   return { success: true };
 }
+
+export async function getCurrentUserId(): Promise<string | null> {
+  try {
+    const res = await fetch("http://localhost:8000/auth/getuser");
+    if (!res.ok) {
+      console.error("getCurrentUserId: Response not OK", res.status);
+      return null;
+    }
+    const data = await res.json();
+    console.log("getCurrentUserId response:", data);
+    if (data.status === 200 && data.user?.id) {
+      console.log("Found user ID:", data.user.id);
+      return data.user.id;
+    }
+    console.warn("getCurrentUserId: No user ID found in response", data);
+    return null;
+  } catch (error) {
+    console.error("Failed to get current user:", error);
+    return null;
+  }
+}

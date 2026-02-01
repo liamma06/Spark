@@ -9,7 +9,7 @@ interface Timeline2Props {
   onEventsChange?: () => void;
 }
 function Timeline2(props: Timeline2Props) {
-  console.log("Timeline2 rendered with patientId:", props.patientId);
+  console.log("Timeline2 rendered with patientId:", props.patientId, "props:", props);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newEventType, setNewEventType] = useState<TimelineEventType>("symptom");
   const [newEventTitle, setNewEventTitle] = useState("");

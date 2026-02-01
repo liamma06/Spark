@@ -211,12 +211,7 @@ def get_current_user():
     print(res)
     print(res["status"])
     
-    return JSONResponse(
-        status_code=res["status"],
-        content={
-            "uid": "Not currently signed in" if res["status"] == 400 else res["user"].id
-        }
-    )
+    return res
 
 
 # --- Chat ---
