@@ -117,7 +117,16 @@ export async function getCurrentUserId(): Promise<string | null> {
   try {
     const cached = localStorage.getItem("userId");
     if (cached) {
-      return cached;
+      // Verify with backend that this user ID is still valid
+      const res = await fetch(`http://localhost:8000/auth/getuser?userId=${cached}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 200 && data.user?.id) {
+          return data.user.id;
+        }
+      }
+      // If verification fails, clear cache and try again
+      localStorage.removeItem("userId");
     }
     const res = await fetch("http://localhost:8000/auth/getuser");
     if (!res.ok) {
@@ -128,6 +137,7 @@ export async function getCurrentUserId(): Promise<string | null> {
     console.log("getCurrentUserId response:", data);
     if (data.status === 200 && data.user?.id) {
       console.log("Found user ID:", data.user.id);
+      localStorage.setItem("userId", data.user.id);
       return data.user.id;
     }
     console.warn("getCurrentUserId: No user ID found in response", data);

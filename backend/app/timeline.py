@@ -8,7 +8,7 @@ import re
 from fastapi import HTTPException
 
 from app.supabase import supabase
-from app.patients import resolve_patient_id
+from app.patients import resolve_patient_id, create_patient
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +77,39 @@ def add_event(
     """
     try:
         resolved_patient_id = resolve_patient_id(patient_id)
+        if not resolved_patient_id:
+            # Try to auto-create patient record if it doesn't exist
+            # This handles cases where user signed up but patient record wasn't created
+            logger.warning(f"No patient found for identifier: {patient_id}. Attempting to auto-create patient record.")
+            try:
+                # Try to get user info from Supabase auth to create patient record
+                # Check if this is a valid user_id by trying to get user from profiles
+                profile_res = supabase.table("profiles").select("*").eq("id", patient_id).execute()
+                if profile_res.data and len(profile_res.data) > 0:
+                    profile = profile_res.data[0]
+                    if profile.get("role") == "patient":
+                        # Create patient record with minimal info
+                        patient_record = create_patient(
+                            name=profile.get("full_name", "Patient"),
+                            age=0,  # Default age, user can update later
+                            address="",
+                            user_id=patient_id,
+                            conditions=[]
+                        )
+                        resolved_patient_id = patient_record.get("id")
+                        logger.info(f"Auto-created patient record with id: {resolved_patient_id}")
+                    else:
+                        logger.error(f"User {patient_id} is not a patient (role: {profile.get('role')})")
+                        raise HTTPException(status_code=403, detail="User is not a patient")
+                else:
+                    logger.error(f"User {patient_id} not found in profiles table")
+                    raise HTTPException(status_code=404, detail="User not found")
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Failed to auto-create patient record: {e}", exc_info=True)
+                raise HTTPException(status_code=404, detail=f"Patient not found for timeline event and could not auto-create: {str(e)}")
+        
         if not resolved_patient_id:
             logger.error(f"Cannot create timeline event. No patient found for identifier: {patient_id}")
             raise HTTPException(status_code=404, detail="Patient not found for timeline event")

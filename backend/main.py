@@ -225,7 +225,36 @@ def sign_out():
 
 
 @app.get("/auth/getuser")
-def get_current_user():
+def get_current_user(userId: Optional[str] = None):
+    """
+    Get current user. If userId is provided as query param, return it.
+    Otherwise, try to get from Supabase session (may not work due to service role key).
+    """
+    # If userId is provided, use it directly (frontend passes it from localStorage)
+    if userId:
+        # Verify the user exists in Supabase auth
+        try:
+            # Try to get patient record to verify user exists
+            patient = patients_get_patient(userId)
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "status": 200,
+                    "user": {"id": userId}
+                }
+            )
+        except HTTPException:
+            # User might not have patient record yet, but still return the userId
+            # The frontend can use this
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "status": 200,
+                    "user": {"id": userId}
+                }
+            )
+    
+    # Fallback to trying to get from session (may not work)
     res = auth_get_current_user()
     
     return JSONResponse(

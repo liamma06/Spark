@@ -77,21 +77,32 @@ def resolve_patient_id(identifier: str) -> str | None:
     Accepts either patients.id or patients.user_id. Returns None if not found.
     """
     if not identifier:
+        logger.warning("resolve_patient_id called with empty identifier")
         return None
+    
+    logger.info(f"Resolving patient_id for identifier: {identifier}")
+    
     try:
         res = supabase.table("patients").select("id").eq("id", identifier).execute()
         if res.data and len(res.data) > 0:
-            return res.data[0].get("id")
+            patient_id = res.data[0].get("id")
+            logger.info(f"Found patient by id: {patient_id}")
+            return patient_id
     except Exception as e:
         logger.warning(f"Failed to resolve patient id by patients.id: {e}")
 
     try:
         res = supabase.table("patients").select("id").eq("user_id", identifier).execute()
         if res.data and len(res.data) > 0:
-            return res.data[0].get("id")
+            patient_id = res.data[0].get("id")
+            logger.info(f"Found patient by user_id: {patient_id}")
+            return patient_id
+        else:
+            logger.warning(f"No patient found for user_id: {identifier}. Available patients: {supabase.table('patients').select('id, user_id, name').execute().data if True else 'N/A'}")
     except Exception as e:
-        logger.warning(f"Failed to resolve patient id by patients.user_id: {e}")
+        logger.error(f"Failed to resolve patient id by patients.user_id: {e}", exc_info=True)
 
+    logger.error(f"Could not resolve patient_id for identifier: {identifier}")
     return None
 
 
