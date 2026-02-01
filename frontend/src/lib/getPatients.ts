@@ -37,7 +37,8 @@ export function usePatients() {
         setError(true);
       }
     });
-  });
+  }, []);
+
   return {
     error: error,
     patients: patients,

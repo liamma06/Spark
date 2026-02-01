@@ -18,13 +18,11 @@ import { useEffect } from "react";
 
 // Role-based route protection
 function RoleRoute({
-  role,
   children,
 }: {
   role: "patient" | "provider";
   children: React.ReactNode;
 }) {
-  const { role: currentRole } = useAppStore();
   const nav = useNavigate();
   useEffect(() => {
     const checkAuth = async () => {
@@ -34,11 +32,7 @@ function RoleRoute({
       }
     };
     checkAuth();
-  }, [nav]);
-
-  if (currentRole !== role) {
-    return <Navigate to="/" replace />;
-  }
+  }, []);
 
   return <>{children}</>;
 }
