@@ -44,8 +44,8 @@ export interface TimelineEvent {
   patientId: string;
   type: TimelineEventType;
   title: string;
-  details?: {text: string};
-  created_at: Date;
+  details?: { text: string };
+  created_at: string;
 }
 
 // Alert types

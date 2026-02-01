@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { patientsApi, alertsApi, timelineApi } from '../lib/api';
-import type { Patient, Alert, TimelineEvent } from '../types';
+import { useState, useEffect, useCallback } from "react";
+import { patientsApi, alertsApi, timelineApi } from "../lib/api";
+import type { Patient, Alert, TimelineEvent } from "../types";
 
 export function usePatients() {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -14,7 +14,7 @@ export function usePatients() {
       setPatients(data);
       setError(null);
     } catch (e) {
-      setError('Failed to load patients');
+      setError("Failed to load patients");
       console.error(e);
     } finally {
       setLoading(false);
@@ -39,7 +39,8 @@ export function usePatient(patientId: string | null) {
       return;
     }
 
-    patientsApi.getById(patientId)
+    patientsApi
+      .getById(patientId)
       .then(setPatient)
       .catch(() => setPatient(null))
       .finally(() => setLoading(false));
@@ -55,7 +56,7 @@ export function useAlerts(patientId?: string) {
   const fetchAlerts = useCallback(async () => {
     try {
       setLoading(true);
-      const data = patientId 
+      const data = patientId
         ? await alertsApi.getByPatient(patientId)
         : await alertsApi.getAll();
       setAlerts(data);
@@ -70,10 +71,13 @@ export function useAlerts(patientId?: string) {
     fetchAlerts();
   }, [fetchAlerts]);
 
-  const acknowledgeAlert = useCallback(async (alertId: string) => {
-    await alertsApi.acknowledge(alertId);
-    fetchAlerts();
-  }, [fetchAlerts]);
+  const acknowledgeAlert = useCallback(
+    async (alertId: string) => {
+      await alertsApi.acknowledge(alertId);
+      fetchAlerts();
+    },
+    [fetchAlerts],
+  );
 
   return { alerts, loading, refetch: fetchAlerts, acknowledgeAlert };
 }
@@ -92,16 +96,8 @@ export function useTimeline(patientId: string | null) {
     setLoading(true);
     try {
       const data = await timelineApi.getByPatient(patientId);
+      setEvents(data);
       // Transform snake_case to camelCase
-      const transformed = data.map((event: any) => ({
-        id: event.id,
-        patientId: event.patient_id,
-        type: event.type,
-        title: event.title,
-        details: event.details?.text || event.details || undefined,
-        createdAt: new Date(event.created_at),
-      }));
-      setEvents(transformed);
     } catch (error) {
       console.error("Failed to fetch timeline events:", error);
       setEvents([]);
