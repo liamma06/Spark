@@ -41,7 +41,7 @@ export function PatientDashboard() {
   };
 
   return (
-    <div className=" bg-bg p-8">
+    <div className=" bg-bg p-8 px-30">
       {/* Main */}
       <main className="bg-bg p-4 gap-3 rounded-2xl w-full">
         {/* Welcome */}
