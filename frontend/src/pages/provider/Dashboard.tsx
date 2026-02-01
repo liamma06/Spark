@@ -9,26 +9,51 @@ import { usePatients } from "../../lib/getPatients";
 import { AddPatientModal } from "../../components/AddPatientModal";
 import { useState } from "react";
 import { addPatient } from "../../lib/addPatient";
+import { dummyTimelineEvents } from "../../types/dummyTimeline";
+import type{ Patient } from "../../types";
 
 export function ProviderDashboard() {
   const navigate = useNavigate();
   const patients = usePatients();
   const [addPatients, setAddPatients] = useState(false);
   const { alerts, loading: alertsLoading, acknowledgeAlert } = useAlerts();
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null> (null);
+
 
   const unacknowledgedAlerts = alerts.filter((a) => !a.acknowledged);
   const criticalAlerts = unacknowledgedAlerts.filter(
     (a) => a.severity === "critical",
   );
 
+  const patientTimeline = selectedPatient
+    ? dummyTimelineEvents.filter((e) => e.patientId === selectedPatient.id)
+    : [];
+
   const handleSignOut = () => {
     signOut();
     navigate("/");
   };
 
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case "symptom":
+        return "🔔";
+      case "appointment":
+        return "📅";
+      case "medication":
+        return "💊";
+      case "alert":
+        return "⚠️";
+      case "chat":
+        return "💬";
+      default:
+        return "📝";
+    }
+  };
+
   return (
     <div className="grid grid-cols-[3fr_1fr] p-8 gap-3 bg-bg">
-      <div className="min-h-screen">
+      <div className="min-h-screen flex flex-col gap-6">
         {/* Main */}
         <div className="bg-bg mx-auto px-6 py-8 flex flex-col gap-3">
           <div className="flex items-center justify-between pb-1">
@@ -75,71 +100,80 @@ export function ProviderDashboard() {
               </AccentButton>
             </div>
           </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <StatCard
-              title="Total Patients"
-              stat={patients.patients.length}
-              badgeStat="5"
-              badgeDetails="More Patients This Month"
-              statColor="text-slate-800"
-            />
-            <StatCard
-              title="Active Alerts"
-              stat={unacknowledgedAlerts.length}
-              badgeStat="2"
-              badgeDetails="More Critical Patients"
-              statColor="text-amber-500"
-            />
-            <StatCard
-              title="Critical"
-              stat={criticalAlerts.length}
-              badgeStat="2"
-              badgeDetails="More Critical Patients"
-              statColor="text-red-500"
-            />
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-8">
-            {/* Alerts Section */}
-            <section>
-              <h2 className="text-lg font-semibold text-slate-800 mb-4">
-                🚨 Active Alerts
-              </h2>
-              {alertsLoading ? (
-                <div className="animate-pulse space-y-4">
-                  <div className="h-24 bg-slate-200 rounded-xl" />
-                  <div className="h-24 bg-slate-200 rounded-xl" />
-                </div>
-              ) : unacknowledgedAlerts.length === 0 ? (
-                <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
-                  <p className="text-4xl mb-2">✅</p>
-                  <p className="text-slate-500">No active alerts</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {unacknowledgedAlerts.map((alert) => (
-                    <AlertCard
-                      key={alert.id}
-                      alert={alert}
-                      onAcknowledge={acknowledgeAlert}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* Patients Section */}
-            <section>
-              <h2 className="text-lg font-semibold text-slate-800 mb-4">
-                Summary
-              </h2>
-            </section>
-          </div>
         </div>
+
+        {/* Patient Stats Section */}
+        { <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <h3 className="text-xl font-medium text-slate-800 mb-4">
+            {selectedPatient?.name ?? ""} - Patient Details
+          </h3>
+          <div className="grid grid-cols-6 gap-4 mb-6">
+            <div className="bg-gradient-to-br bg-slate-200  rounded-lg p-4">
+              <p className="text-sm text-slate-600 mb-1">Age</p>
+              <p className="text-2xl font-bold text-slate-800">
+                {selectedPatient?.age}
+              </p>
+            </div>
+            <div className="bg-gradient-to-br bg-slate-200 rounded-lg p-4 col-span-2">
+              <p className="text-sm text-slate-600 mb-1">Address</p>
+              <p className="text-sm font-semibold text-slate-800">
+                {selectedPatient?.address}
+              </p>
+            </div>
+            <div className="bg-gradient-to-br bg-slate-200  rounded-lg p-4 col-span-3">
+              <p className="text-sm text-slate-600 mb-1">Conditions</p>
+              <p className="text-sm font-semibold text-slate-800 gap-2 space-x-2">
+                {selectedPatient?.conditions.map((condition, i) => (
+                  <span
+                    key={i}
+                    className="px-3 py-1 text-sm rounded-full bg-green-gradient-light text-slate-100 font-medium"
+                  >
+                    {condition}
+                  </span>
+                ))}
+              </p>
+            </div>
+          </div>
+        </div>}
+
+        {/* Timeline Section */}
+        {(patientTimeline != null)? <div className="bg-white rounded-2xl p-6 shadow-sm flex-1">
+          <h3 className="text-xl font-medium text-slate-800 mb-4">
+            Patient Timeline
+          </h3>
+          <div className="space-y-4 overflow-y-auto max-h-96 pr-4">
+            {patientTimeline.length > 0 ? (
+              patientTimeline.map((event, index) => (
+                <div key={event.id} className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-lg">
+                      {getTypeIcon(event.type)}
+                    </div>
+                    {index < patientTimeline.length - 1 && (
+                      <div className="w-1 h-12 bg-slate-200 mt-2"></div>
+                    )}
+                  </div>
+                  <div className="pb-4 flex-1">
+                    <p className="font-medium text-slate-800">{event.title}</p>
+                    {event.details && (
+                      <p className="text-sm text-slate-600 mt-1">
+                        {event.details}
+                      </p>
+                    )}
+                    <p className="text-xs text-slate-400 mt-2">
+                      {new Date(event.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-slate-400 text-center py-8">
+                No timeline events yet
+              </p>
+            )}
+          </div>
+        </div>: null}
       </div>
-      {/* Patient Side List */}
       <div className="flex flex-col h-[95vh]">
         <div className="mb-8 h-full bg-linear-to-br from-green-gradient-dark to-green-gradient-light rounded-2xl p-6 text-white overflow-y-scroll no-scrollbar">
           <div className="text-lg font-medium">Patient List</div>

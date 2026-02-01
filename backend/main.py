@@ -232,9 +232,7 @@ def sign_out():
 @app.get("/auth/getuser")
 def get_current_user():
     res = auth_get_current_user()
-    print(res)
-    print(res["status"])
-
+    
     return JSONResponse(
         status_code=res["status"],
         content={
