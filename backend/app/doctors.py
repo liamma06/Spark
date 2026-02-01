@@ -32,6 +32,23 @@ def create_doctor(user_id: str, bio: str, specialty: str | None = None) -> dict:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def get_profile_by_user_id(user_id: str) -> dict:
+    """
+    Get profile data by user_id from profiles table.
+    Returns full_name, role, email, etc.
+    Raises HTTPException 404 if not found, 500 on Supabase error.
+    """
+    try:
+        res = supabase.table("profiles").select("*").eq("id", user_id).execute()
+        if not res.data or len(res.data) == 0:
+            raise HTTPException(status_code=404, detail="Profile not found")
+        return res.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 def get_doctor_by_user_id(user_id: str) -> dict:
     """
     Get one doctor by Supabase user_id (profiles.id / auth.users.id).
