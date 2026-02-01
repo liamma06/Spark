@@ -245,8 +245,6 @@ def end_call(request: ChatRequest):
         if messages:
             summary = generate_summary(messages)
     except Exception as e:
-        import logging
-
         logging.error(f"Failed to generate summary: {e}")
         summary = "**Summary**: Unable to generate conversation summary."
     
@@ -300,7 +298,6 @@ async def chat(request: ChatRequest):
     last_message = request.messages[-1].content if request.messages else ""
 
     async def generate():
-        import logging
         nonlocal resolved_patient_id
         logging.info(f"Chat request received. patientId: {request.patientId}, message count: {len(request.messages)}")
         try:
@@ -338,8 +335,6 @@ async def process_post_stream_actions_async(
     messages: list[dict]
 ):
     """Process risk assessment and timeline extraction asynchronously in the background."""
-    import logging
-    
     try:
         if not resolved_patient_id:
             logging.warning(f"No patient found for timeline events. patientId: {patient_id}")
