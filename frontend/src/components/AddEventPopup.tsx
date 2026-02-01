@@ -76,7 +76,7 @@ export function AddEventPopup({ isOpen, onClose, onSubmit, isSubmitting = false 
               <select
                 value={eventType}
                 onChange={(e) => setEventType(e.target.value as TimelineEventType)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                 required
                 disabled={isSubmitting}
               >
@@ -95,7 +95,7 @@ export function AddEventPopup({ isOpen, onClose, onSubmit, isSubmitting = false 
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                 placeholder="Enter event title"
                 required
                 disabled={isSubmitting}
@@ -108,7 +108,7 @@ export function AddEventPopup({ isOpen, onClose, onSubmit, isSubmitting = false 
               <textarea
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                 placeholder="Enter event details"
                 rows={3}
                 disabled={isSubmitting}
@@ -122,7 +122,7 @@ export function AddEventPopup({ isOpen, onClose, onSubmit, isSubmitting = false 
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                 disabled={isSubmitting}
               />
             </div>
@@ -139,7 +139,7 @@ export function AddEventPopup({ isOpen, onClose, onSubmit, isSubmitting = false 
             <button
               type="submit"
               disabled={isSubmitting || !title.trim()}
-              className="flex-1 px-4 py-2 bg-sky-500 text-white rounded-lg font-medium hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-gradient-dark to-green-gradient-light text-white rounded-full font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
             >
               {isSubmitting ? "Adding..." : "Add Event"}
             </button>
