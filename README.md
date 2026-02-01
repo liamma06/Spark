@@ -13,14 +13,15 @@ An AI-powered healthcare platform connecting patients with intelligent care comp
 
 ### 1. Backend Setup
 
-see backend/.example.env
-run 
-
 ```bash
+# see backend/.example.env 
+# for keys
 cd backend
 
+# Install dependencies
 pip install -r requirements.txt
 
+# Start the development server
 fastapi dev
 ```
 
@@ -67,8 +68,8 @@ Spark/
 └── backend/                     # FASTAPI + Supabase
     └── src/
         ├── app/              # REST API endpoints
-        ├── .env                  # Database schema & migrations
-        ├── requirements.txt             # Business logic & AI integration
+        ├── .env                  # environment variables
+        ├── requirements.txt      # pip package list
         └── main.py               # Server entry point
 ```
 
