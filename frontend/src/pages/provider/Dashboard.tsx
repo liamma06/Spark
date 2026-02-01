@@ -63,7 +63,7 @@ export function ProviderDashboard() {
 
   return (
     <div className=" min-h-screen  grid grid-cols-[5fr_0.7fr] p-8 gap-8 bg-bg px-[120px]">
-      <div className=" flex flex-col gap-6">
+      <main className=" flex flex-col gap-6 max-w-[65vw]">
         {/* Main */}
         <div className="bg-bg px-6 py-8 flex flex-col gap-3">
           <div className="flex items-center justify-between pb-1">
@@ -150,7 +150,7 @@ export function ProviderDashboard() {
             </div>
           </div>
         )}
-      </div>
+      </main>
       <div className="flex flex-col h-[95vh] sticky top-8">
         <div className="mb-8 h-full bg-linear-to-br from-green-gradient-dark to-green-gradient-light rounded-2xl p-6 text-white overflow-hidden flex flex-col">
           {/* Header */}
