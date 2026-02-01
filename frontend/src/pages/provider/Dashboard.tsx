@@ -9,7 +9,6 @@ import { usePatients } from "../../lib/getPatients";
 import { AddPatientModal } from "../../components/AddPatientModal";
 import { useState } from "react";
 import { addPatient } from "../../lib/addPatient";
-import { dummyTimelineEvents } from "../../types/dummyTimeline";
 import type{ Patient, TimelineEvent } from "../../types";
 import { getTimeline } from "../../lib/getTimeline";
 import Timeline2 from "../../components/Timeline2";
@@ -25,9 +24,6 @@ export function ProviderDashboard() {
 
 
   const unacknowledgedAlerts = alerts.filter((a) => !a.acknowledged);
-  const criticalAlerts = unacknowledgedAlerts.filter(
-    (a) => a.severity === "critical",
-  );
 
 
   const handleSignOut = () => {
