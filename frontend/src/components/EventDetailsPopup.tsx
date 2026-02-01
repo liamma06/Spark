@@ -64,7 +64,14 @@ const renderMarkdown = (text: string) => {
     const trimmed = line.trim();
     
     // Headers
-    if (trimmed.startsWith('## ')) {
+    if (trimmed.startsWith('# ')) {
+      elements.push(
+        <h1 key={index} className="text-2xl font-bold mt-6 mb-3 text-slate-800">
+          {trimmed.substring(2)}
+        </h1>
+      );
+      inList = false;
+    } else if (trimmed.startsWith('## ')) {
       elements.push(
         <h2 key={index} className="text-xl font-bold mt-4 mb-2 text-slate-800">
           {trimmed.substring(3)}
@@ -169,7 +176,7 @@ export function EventDetailsPopup({ isOpen, event, onClose, onDelete, isDeleting
                   Details
                 </label>
                 <div className="text-slate-800 prose prose-slate max-w-none">
-                  {renderMarkdown(event.details)}
+                  {renderMarkdown(typeof event.details === 'string' ? event.details : event.details.text || '')}
                 </div>
               </div>
             )}

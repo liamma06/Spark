@@ -26,7 +26,14 @@ export function SummaryPopup({ isOpen, summary, onClose }: SummaryPopupProps) {
       const trimmed = line.trim();
       
       // Headers
-      if (trimmed.startsWith('## ')) {
+      if (trimmed.startsWith('# ')) {
+        elements.push(
+          <h1 key={index} className="text-2xl font-bold mt-6 mb-3 text-slate-800">
+            {trimmed.substring(2)}
+          </h1>
+        );
+        inList = false;
+      } else if (trimmed.startsWith('## ')) {
         elements.push(
           <h2 key={index} className="text-xl font-bold mt-4 mb-2 text-slate-800">
             {trimmed.substring(3)}
@@ -128,7 +135,7 @@ export function SummaryPopup({ isOpen, summary, onClose }: SummaryPopupProps) {
         <div className="px-6 py-4 border-t border-slate-200 flex justify-end">
           <button
             onClick={handleReturnToDashboard}
-            className="px-6 py-2 bg-sky-500 text-white rounded-lg font-medium hover:bg-sky-600 transition-colors"
+            className="px-6 py-2.5 bg-gradient-to-r from-green-gradient-dark to-green-gradient-light text-white rounded-full font-medium hover:opacity-90 transition-all shadow-sm"
           >
             Return to Dashboard
           </button>
