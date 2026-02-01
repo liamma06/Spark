@@ -47,15 +47,37 @@ export function ProviderDashboard() {
         {/* Main */}
         <div className="bg-bg px-6 py-8 flex flex-col gap-3">
           <div className="flex items-center justify-between pb-1">
-            <div className="flex flex-col gap-2">
-              <h2 className="text-3xl font-medium  text-slate-800 text-left">
-                Welcome back!
-              </h2>
-              <p className="secondary-text">
-                Here is an overview of your patients
-              </p>
+            <div className="flex items-center gap-4">
+              <img
+                src="/IconGreen.svg"
+                alt="CareBridge AI"
+                className="w-12 h-12 rounded-2xl"
+              />
+              <div className="flex flex-col gap-2">
+                <h2 className="text-3xl font-medium  text-slate-800 text-left">
+                  Welcome back!
+                </h2>
+                <p className="secondary-text">
+                  Here is an overview of your patients
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-3"></div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSignOut}
+                className="pl-4 pr-6 py-3 rounded-full bg-gradient-to-b from-green-gradient-dark to-green-gradient-light flex items-center gap-2 cursor-pointer"
+                title="Sign out"
+              >
+                <svg
+                  className="w-4 h-4 text-white"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z" />
+                </svg>
+                <span className="text-white text-sm">Sign Out</span>
+              </button>
+            </div>
           </div>
         </div>
 
