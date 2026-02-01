@@ -12,12 +12,19 @@ interface Timeline2Props {
 }
 function Timeline2(props: Timeline2Props) {
   const [showAddPopup, setShowAddPopup] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(
+    null,
+  );
   const [showDetailsPopup, setShowDetailsPopup] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleAddEvent = async (type: TimelineEventType, title: string, details?: string, date?: string) => {
+  const handleAddEvent = async (
+    type: TimelineEventType,
+    title: string,
+    details?: string,
+    date?: string,
+  ) => {
     if (!props.patientId) {
       alert("User ID is required. Please sign in to add events.");
       return;
@@ -25,13 +32,7 @@ function Timeline2(props: Timeline2Props) {
 
     setIsSubmitting(true);
     try {
-      await timelineApi.create(
-        props.patientId,
-        type,
-        title,
-        details,
-        date
-      );
+      await timelineApi.create(props.patientId, type, title, details, date);
       setShowAddPopup(false);
       if (props.onEventsChange) {
         props.onEventsChange();
@@ -65,7 +66,9 @@ function Timeline2(props: Timeline2Props) {
   };
   const sortedEvents = () => {
     return props.events.sort((a, b) => {
-      return a.created_at.getTime() > b.created_at.getTime() ? 1 : -1;
+      return new Date(a.created_at).getTime() > new Date(b.created_at).getTime()
+        ? 1
+        : -1;
     });
   };
   return (
@@ -89,7 +92,7 @@ function Timeline2(props: Timeline2Props) {
               <TimelineNode
                 key={index + event.title}
                 type={event.type}
-                date={event.created_at}
+                date={new Date(event.created_at)}
               >
                 <div
                   className={`ml-[0.325em] border-l-2 border-b-2 ${event.type == "medication" ? "border-red-500" : "border-primary"} pt-10 p-3 rounded-bl-2xl mr-10 mt-3`}
@@ -101,7 +104,9 @@ function Timeline2(props: Timeline2Props) {
                     {event.title}
                   </button>
                   {event.details && (
-                    <div className="text-xs text-slate-600 mt-1 line-clamp-2">{event.details.text}</div>
+                    <div className="text-xs text-slate-600 mt-1 line-clamp-2">
+                      {event.details.text}
+                    </div>
                   )}
                 </div>
               </TimelineNode>

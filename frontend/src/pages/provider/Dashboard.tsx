@@ -10,7 +10,7 @@ import { AddPatientModal } from "../../components/AddPatientModal";
 import { useState } from "react";
 import { addPatient } from "../../lib/addPatient";
 import { dummyTimelineEvents } from "../../types/dummyTimeline";
-import type{ Patient, TimelineEvent } from "../../types";
+import type { Patient, TimelineEvent } from "../../types";
 import { getTimeline } from "../../lib/getTimeline";
 import Timeline2 from "../../components/Timeline2";
 
@@ -19,36 +19,29 @@ export function ProviderDashboard() {
   const patients = usePatients();
   const [addPatients, setAddPatients] = useState(false);
   const { alerts, loading: alertsLoading, acknowledgeAlert } = useAlerts();
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null> (null);
-  const [patientTimeline, setSelectedTimeline] = useState<TimelineEvent[]> ([]);
-
-
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [patientTimeline, setSelectedTimeline] = useState<TimelineEvent[]>([]);
 
   const unacknowledgedAlerts = alerts.filter((a) => !a.acknowledged);
   const criticalAlerts = unacknowledgedAlerts.filter(
     (a) => a.severity === "critical",
   );
 
-
   const handleSignOut = () => {
     signOut();
     navigate("/");
   };
 
-
   const handleSelectPatient = (patient: Patient) => {
     setSelectedPatient(patient);
-    getTimeline(patient.user_id)
-      .then((res) => {
+    getTimeline(patient.user_id).then((res) => {
+      console.log(res);
+      if (res.success) {
+        setSelectedTimeline(res.timeline_events!);
+      } else {
         console.log(res);
-        if (res.success){
-          setSelectedTimeline(res.timeline_events!);
-        }
-        else{
-          console.log(res);
-        }
-      })
-    
+      }
+    });
   };
 
   const getTypeIcon = (type: string) => {
@@ -69,8 +62,8 @@ export function ProviderDashboard() {
   };
 
   return (
-    <div className="grid grid-cols-[5fr_0.7fr] p-8 gap-8 bg-bg px-[120px]">
-      <div className="min-h-screen flex flex-col gap-6">
+    <div className=" min-h-screen  grid grid-cols-[5fr_0.7fr] p-8 gap-8 bg-bg px-[120px]">
+      <div className=" flex flex-col gap-6">
         {/* Main */}
         <div className="bg-bg px-6 py-8 flex flex-col gap-3">
           <div className="flex items-center justify-between pb-1">
@@ -82,9 +75,7 @@ export function ProviderDashboard() {
                 Here is an overview of your patients
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              
-            </div>
+            <div className="flex items-center gap-3"></div>
           </div>
         </div>
 
@@ -126,29 +117,35 @@ export function ProviderDashboard() {
           <div className="bg-white rounded-2xl p-12 shadow-sm flex items-center justify-center min-h-64">
             <div className="text-center">
               <p className="text-slate-400 text-lg">No patient selected</p>
-              <p className="text-slate-300 text-sm mt-2">Select a patient from the list to view their details</p>
+              <p className="text-slate-300 text-sm mt-2">
+                Select a patient from the list to view their details
+              </p>
             </div>
           </div>
         )}
 
         {/* Timeline Section */}
-        {`${patientTimeline.length} bababoeey`}
         {patientTimeline.length > 0 ? (
-          <div className="bg-white rounded-2xl p-6 shadow-sm flex-1">
-            <h3 className="text-xl font-medium text-slate-800 mb-4">Patient Timeline</h3>
-            <div className="space-y-4 overflow-y-auto max-h-96 pr-4">
-              <Timeline2 events={patientTimeline}/>
-              
+          <div className="bg-white rounded-2xl p-6 shadow-sm w-full ">
+            <h3 className="text-xl font-medium text-slate-800 mb-4">
+              Patient Timeline
+            </h3>
+            <div>
+              <Timeline2 events={patientTimeline} />
             </div>
           </div>
         ) : (
           <div className="bg-white rounded-2xl p-12 shadow-sm flex items-center justify-center flex-1">
             <div className="text-center">
               <p className="text-slate-400 text-lg">
-                {selectedPatient ? "No timeline events" : "Select a patient to view timeline"}
+                {selectedPatient
+                  ? "No timeline events"
+                  : "Select a patient to view timeline"}
               </p>
               <p className="text-slate-300 text-sm mt-2">
-                {selectedPatient ? "This patient has no recorded events yet" : "Timeline events will appear here"}
+                {selectedPatient
+                  ? "This patient has no recorded events yet"
+                  : "Timeline events will appear here"}
               </p>
             </div>
           </div>
@@ -184,7 +181,6 @@ export function ProviderDashboard() {
 
           {/* Logo and Buttons at bottom */}
           <div className="mt-6 pt-6 border-t border-white/20 flex flex-col items-center gap-3">
-
             {/* Buttons Container */}
             <div className="flex flex-col gap-2 w-full">
               {/* Add Patient Button */}
@@ -199,9 +195,7 @@ export function ProviderDashboard() {
                 >
                   <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
                 </svg>
-                <span className="whitespace-nowrap">
-                  Add Patient
-                </span>
+                <span className="whitespace-nowrap">Add Patient</span>
               </button>
 
               {/* Sign Out Button */}
@@ -216,9 +210,7 @@ export function ProviderDashboard() {
                 >
                   <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z" />
                 </svg>
-                <span className="whitespace-nowrap">
-                  Sign Out
-                </span>
+                <span className="whitespace-nowrap">Sign Out</span>
               </button>
             </div>
           </div>
