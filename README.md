@@ -1,76 +1,149 @@
 # CareBridge AI
 
-AI-powered healthcare companion for patient check-ins, risk assessment, and provider dashboards.
+An AI-powered healthcare platform connecting patients with intelligent care companions and healthcare providers with comprehensive patient dashboards. Built for seamless health check-ins, real-time risk assessment, and data-driven clinical decision-making.
 
 ## Quick Start
+
+### Prerequisites
+- Node.js 18+
+- Supabase URL
+- Supabase Key
+- Cohere Key
+- ElevenLabs Key
 
 ### 1. Backend Setup
 
 ```bash
+# see backend/.example.env 
+# for keys
 cd backend
 
-# Create .env file with your OpenAI API key
-echo "OPENAI_API_KEY=sk-your-key-here" > .env
+# Install dependencies
+pip install -r requirements.txt
 
-# Seed the database (already done if you ran setup)
-npm run db:seed
-
-# Start the server
-npm run dev
+# Start the development server
+fastapi dev
 ```
 
-Backend runs on **http://localhost:3001**
 
 ### 2. Frontend Setup
 
 ```bash
 cd frontend
 
-# Start the dev server
+# Install dependencies
+npm install
+
+# Start the development server
 npm run dev
 ```
 
 Frontend runs on **http://localhost:5173**
 
-## Demo Patients
 
-The database is seeded with three demo patients:
-
-| Patient | Age | Risk Level | Scenario |
-|---------|-----|------------|----------|
-| Maria Rodriguez | 67 | HIGH | Diabetic with chest tightness |
-| James Chen | 34 | MEDIUM | Anxiety and sleep issues |
-| Sarah Thompson | 28 | LOW | Routine check-in |
 
 ## Project Structure
 
 ```
 Spark/
-├── frontend/          # Vite + React 19 + TypeScript
+├── frontend/                    # React 19 + Vite + TypeScript
 │   ├── src/
-│   │   ├── pages/     # Route pages
-│   │   ├── components/# Reusable UI components
-│   │   ├── hooks/     # Custom React hooks
-│   │   ├── stores/    # Zustand state
-│   │   └── lib/       # Utilities
+│   │   ├── pages/
+│   │   │   ├── Home.tsx         # Sign-in page
+│   │   │   ├── Signup.tsx       # Registration page
+│   │   │   ├── patient/
+│   │   │   │   ├── Dashboard.tsx# Patient home screen
+│   │   │   │   └── Chat.tsx     # AI chat interface
+│   │   │   └── provider/
+│   │   │       ├── Dashboard.tsx# Provider patient overview
+│   │   │       └── PatientDetail.tsx
+│   │   ├── components/          # Reusable UI components
+│   │   ├── hooks/               # Custom React hooks
+│   │   ├── stores/              # Zustand state management
+│   │   ├── lib/                 # Utilities & helpers
+│   │   └── types/               # TypeScript types
+│   └── public/
+│       └── Logo.png             # Brand logo
 │
-└── backend/           # Hono + SQLite + OpenAI
+└── backend/                     # FASTAPI + Supabase
     └── src/
-        ├── routes/    # API endpoints
-        ├── db/        # Database schema & seed
-        └── lib/       # Business logic
+        ├── app/              # REST API endpoints
+        ├── .env                  # environment variables
+        ├── requirements.txt      # pip package list
+        └── main.py               # Server entry point
 ```
-
-## Tech Stack
-
-- **Frontend**: Vite 7, React 19, TypeScript, Tailwind CSS, Zustand
-- **Backend**: Hono, SQLite, Drizzle ORM, OpenAI API
-- **AI**: GPT-4o-mini for chat, keyword-based risk assessment
 
 ## Features
 
-- Patient AI chat with streaming responses
-- Automated risk detection and alerts
-- Visual health timeline
-- Decision graph showing AI reasoning
-- Provider dashboard with patient overview
+### Patient Interface
+- **AI Care Companion**: Chat-based health assessment with streaming responses
+- **Health Dashboard**: Quick access to health status and recent interactions
+- **Call-based Check-ins**: Record symptoms and health updates via conversation
+- **Summary Generation**: AI-powered health summaries from conversations
+
+### Provider Interface
+- **Patient Management**: Add and manage patient roster
+- **Patient Dashboard**: View detailed patient information at a glance
+  - Age, Address, and Active Conditions
+  - Risk level assessment
+  - Visual patient selection and filtering
+- **Patient Timeline**: Chronological health event history
+  - Symptoms, appointments, medications
+  - Chat interactions and alerts
+- **Sticky Sidebar**: Quick patient access with sticky positioning
+- **Responsive Design**: Optimized for desktop workflows
+
+## Tech Stack
+
+### Frontend
+- **Framework**: React 19 with Vite
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **State Management**: Zustand
+- **Routing**: React Router
+- **HTTP Client**: Fetch API
+
+### Backend
+- **Framework**: FastAPI
+- **Database**: Supabase with RLS and Row Based Access Control
+- **AI Integration**: Cohere, Elevenlabs
+
+### Infrastructure
+- **Risk Assessment**: Keyword-based analysis with AI enhancement
+- **Real-time Features**: Streaming chat responses
+- **Data Privacy & Storage**: Supabase with persistent schema and RBAC to ensure user privacy.
+
+## Core Functionality
+
+### Patient Flow
+1. User signs up/logs in with email and password
+2. Selects role (Patient or Provider)
+3. Patient accesses AI Care Companion
+4. Chat interactions generate health summaries
+5. Risk assessment triggers alerts for critical conditions
+
+### Provider Flow
+1. Provider logs in to dashboard
+2. Views comprehensive patient list
+3. Clicks patient to see:
+   - Detailed patient statistics
+   - Medical conditions and history
+   - Complete health timeline
+4. Manages patient roster with add/remove functionality
+
+## Authentication
+
+- Email/password based authentication
+- Role-based access control (Patient vs Provider)
+- Session management with secure cookies
+
+## Responsive Design
+
+- Mobile-first approach with Tailwind CSS
+- Sticky sidebars for persistent navigation
+- Two-column layout optimized for desktop workflows
+- Graceful fallbacks for smaller screens
+
+---
+
+Made with ❤️ for Spark

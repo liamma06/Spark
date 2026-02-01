@@ -23,9 +23,6 @@ export function ProviderDashboard() {
   const [patientTimeline, setSelectedTimeline] = useState<TimelineEvent[]>([]);
 
   const unacknowledgedAlerts = alerts.filter((a) => !a.acknowledged);
-  const criticalAlerts = unacknowledgedAlerts.filter(
-    (a) => a.severity === "critical",
-  );
 
   const handleSignOut = () => {
     signOut();
@@ -44,26 +41,9 @@ export function ProviderDashboard() {
     });
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "symptom":
-        return "🔔";
-      case "appointment":
-        return "📅";
-      case "medication":
-        return "💊";
-      case "alert":
-        return "⚠️";
-      case "chat":
-        return "💬";
-      default:
-        return "📝";
-    }
-  };
-
   return (
     <div className=" min-h-screen  grid grid-cols-[5fr_0.7fr] p-8 gap-8 bg-bg px-[120px]">
-      <main className=" flex flex-col gap-6 max-w-[65vw]">
+      <main className=" flex flex-col gap-6 min-w-0">
         {/* Main */}
         <div className="bg-bg px-6 py-8 flex flex-col gap-3">
           <div className="flex items-center justify-between pb-1">
@@ -81,7 +61,7 @@ export function ProviderDashboard() {
 
         {/* Patient Stats Section */}
         {selectedPatient ? (
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <div className="bg-white rounded-2xl p-6 shadow-sm max-w-full">
             <h3 className="text-xl font-medium text-slate-800 mb-4">
               {selectedPatient.name} - Patient Details
             </h3>
@@ -130,12 +110,12 @@ export function ProviderDashboard() {
             <h3 className="text-xl font-medium text-slate-800 mb-4">
               Patient Timeline
             </h3>
-            <div>
+            <div className="overflow-x-clip">
               <Timeline2 events={patientTimeline} />
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl p-12 shadow-sm flex items-center justify-center flex-1">
+          <div className="bg-white rounded-2xl p-12 shadow-sm flex items-center justify-center ">
             <div className="text-center">
               <p className="text-slate-400 text-lg">
                 {selectedPatient
