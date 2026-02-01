@@ -34,6 +34,40 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
+from app.supabase import (
+    sign_up as auth_sign_up,
+    sign_in as auth_sign_in,
+    sign_out as auth_sign_out,
+    get_current_user as auth_get_current_user,
+)
+from app.cohere_chat import get_system_prompt, assess_risk, stream_chat, generate_summary
+from app.tts import handle_tts_request
+from app.doctors import (
+    create_doctor as doctors_create,
+    get_my_patients as doctors_get_my_patients,
+    get_patient_doctors as doctors_get_patient_doctors,
+    connect_patient_doctor as doctors_connect,
+    disconnect_patient_doctor as doctors_disconnect,
+)
+from app.patients import (
+    get_patients as patients_get_patients,
+    get_patient as patients_get_patient,
+    search_patients_by_name as patients_search_by_name,
+    create_patient as patients_create,
+    update_patient_risk as patients_update_risk,
+)
+from app.alerts import (
+    get_alerts as alerts_get_alerts,
+    acknowledge_alert as alerts_acknowledge_alert,
+    create_alert as alerts_create_alert,
+)
+
+from app.timeline import (
+    get_timeline as timeline_get_timeline,
+    add_event as timeline_add_event,
+    delete_event as timeline_delete_event,
+)
 
 # Load environment variables
 load_dotenv()
@@ -271,6 +305,7 @@ async def chat(request: ChatRequest):
                             f'High-risk symptoms reported: "{last_message[:50]}..."',
                             "Keywords indicating potentially serious symptoms were detected.",
                         )
+                        patients_update_risk(request.patientId, "high")
                     except HTTPException:
                         pass
                 details = (
