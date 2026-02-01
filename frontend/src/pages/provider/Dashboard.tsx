@@ -123,7 +123,7 @@ export function ProviderDashboard() {
         {/* Timeline Section */}
         <Timeline2 events={patientTimeline}/>
       </div>
-      <div className="flex flex-col h-[95vh]">
+      <div className="flex flex-col h-[95vh] sticky top-8">
         <div className="mb-8 h-full bg-linear-to-br from-green-gradient-dark to-green-gradient-light rounded-2xl p-6 text-white overflow-hidden flex flex-col">
           {/* Header */}
           <div className="text-lg font-medium mb-4">Patient List</div>
