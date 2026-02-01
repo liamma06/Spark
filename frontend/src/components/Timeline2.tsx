@@ -101,7 +101,7 @@ function Timeline2(props: Timeline2Props) {
                     {event.title}
                   </button>
                   {event.details && (
-                    <div className="text-xs text-slate-600 mt-1 line-clamp-2">{event.details}</div>
+                    <div className="text-xs text-slate-600 mt-1 line-clamp-2">{event.details.text}</div>
                   )}
                 </div>
               </TimelineNode>

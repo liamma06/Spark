@@ -153,3 +153,24 @@ def create_patient(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def update_patient_risk(user_id: str, risk_level: str) -> dict:
+    """
+    Update a patient's risk_level. Must be 'low', 'medium', or 'high'.
+    user_id is the patient's Supabase user_id.
+    """
+    if risk_level not in ("low", "medium", "high"):
+        raise HTTPException(status_code=400, detail="risk_level must be low, medium, or high")
+    try:
+        res = (
+            supabase.table("patients")
+            .update({"risk_level": risk_level})
+            .eq("user_id", user_id)
+            .execute()
+        )
+        if not res.data or len(res.data) == 0:
+            raise HTTPException(status_code=404, detail="Patient not found")
+        return res.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, Response, JSONResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from app.supabase import (
@@ -29,6 +29,7 @@ from app.patients import (
     search_patients_by_name as patients_search_by_name,
     create_patient as patients_create,
     resolve_patient_id as patients_resolve_patient_id,
+    update_patient_risk as patients_update_risk,
 )
 from app.alerts import (
     get_alerts as alerts_get_alerts,
@@ -78,7 +79,6 @@ class AlertAcknowledge(BaseModel):
     acknowledged: bool = True
 
 
-
 class CreateDoctorBody(BaseModel):
     user_id: str = Field(..., alias="userId")
     specialty: str | None = Field(None)
@@ -99,8 +99,8 @@ class CreatePatientBody(BaseModel):
 
 
 class PatientDoctorLink(BaseModel):
-    patient_id: str = Field(..., alias="patientId")
-    doctor_id: str = Field(..., alias="doctorId")
+    patient_id: str
+    doctor_id: str
 
     class Config:
         populate_by_name = True
@@ -113,20 +113,23 @@ class TTSRequest(BaseModel):
     class Config:
         populate_by_name = True
 
+
 class PatientSignUp(BaseModel):
     email: str
-    password: str 
+    password: str
     address: str
     name: str
     age: int
     condition: list[str]
 
+
 class DoctorSignUp(BaseModel):
     email: str
-    password: str 
+    password: str
     speciality: str
     name: str
     bio: str
+
 
 # Basic Routes
 
@@ -144,52 +147,50 @@ def read_root():
 def health_check():
     return {"status": "ok"}
 
+
 # --------- AUTH ROUTES ------------------
+
 
 @app.post("/auth/patient/signup")
 def patient_sign_up(body: PatientSignUp):
     try:
         # Sign in
-        clientUid = auth_sign_up(email=body.email, password=body.password, role="patient", full_name=body.name)
+        clientUid = auth_sign_up(
+            email=body.email,
+            password=body.password,
+            role="patient",
+            full_name=body.name,
+        )
 
-        # Create 
+        # Create
         return patients_create(
             name=body.name,
             age=body.age,
             user_id=clientUid,
             conditions=body.condition,
             # risk_level=body.risk_level,
-            address=body.address
+            address=body.address,
+        )
 
-        )
-        
     except Exception as e:
-        return JSONResponse(
-            status_code=400,
-            content={
-                "msg": f"Error: {e}"
-            }
-        )
+        return JSONResponse(status_code=400, content={"msg": f"Error: {e}"})
+
+
 @app.post("/auth/doctor/signup")
 def doctor_sign_up(body: DoctorSignUp):
     try:
-        clientUid = auth_sign_up(email=body.email, password=body.password, role="doctor", full_name=body.name)
+        clientUid = auth_sign_up(
+            email=body.email, password=body.password, role="doctor", full_name=body.name
+        )
         return doctors_create(
-            user_id=clientUid,
-            specialty=body.speciality,
-            bio=body.bio
-
+            user_id=clientUid, specialty=body.speciality, bio=body.bio
         )
 
     except Exception as e:
-        return JSONResponse(
-            status_code=400,
-            content={
-                "msg": f"Error: {e}"
-            }
-        )
+        return JSONResponse(status_code=400, content={"msg": f"Error: {e}"})
 
-#Cohere Chats 
+
+# Cohere Chats
 @app.post("/auth/signin")
 def sign_in(email: str, password: str, role: str):
     try:
@@ -197,12 +198,7 @@ def sign_in(email: str, password: str, role: str):
 
         return res
     except Exception as e:
-        return JSONResponse(
-            status_code=400,
-            content={
-                'msg': 'Incorrect password'
-            }
-        )
+        return JSONResponse(status_code=400, content={"msg": "Incorrect password"})
 
 
 @app.post("/auth/signout")
@@ -215,13 +211,17 @@ def sign_out():
 @app.get("/auth/getuser")
 def get_current_user():
     res = auth_get_current_user()
-    print(res)
-    print(res["status"])
     
-    return res
+    return JSONResponse(
+        status_code=res["status"],
+        content={
+            "uid": "Not currently signed in" if res["status"] == 400 else res["user"].id
+        },
+    )
 
 
 # --- Chat ---
+
 
 @app.get("/api/chat/greeting")
 def get_greeting():
@@ -234,8 +234,10 @@ def get_greeting():
 def end_call(request: ChatRequest):
     """End the call: return closing message and generate conversation summary."""
     # Hardcoded closing message
-    closing_message = "Thank you for sharing with me today. Take care and feel better soon!"
-    
+    closing_message = (
+        "Thank you for sharing with me today. Take care and feel better soon!"
+    )
+
     # Generate summary from conversation messages
     messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
     summary = ""
@@ -244,6 +246,7 @@ def end_call(request: ChatRequest):
             summary = generate_summary(messages)
     except Exception as e:
         import logging
+
         logging.error(f"Failed to generate summary: {e}")
         summary = "**Summary**: Unable to generate conversation summary."
     
@@ -267,13 +270,10 @@ def end_call(request: ChatRequest):
                     "AI Conversation Summary",
                     summary
                 )
-                import logging
                 logging.info(f"Created timeline event for conversation summary for patient: {resolved_patient_id}")
             else:
-                import logging
                 logging.warning(f"Could not resolve patient ID for summary timeline event: {request.patientId}")
         except Exception as e:
-            import logging
             logging.error(f"Failed to create summary timeline event: {e}", exc_info=True)
     
     return {
@@ -316,7 +316,6 @@ async def chat(request: ChatRequest):
                     resolved_patient_id = patients_resolve_patient_id(request.patientId)
                 
                 # Schedule background task for timeline extraction and risk assessment
-                import asyncio
                 asyncio.create_task(process_post_stream_actions_async(
                     request.patientId,
                     resolved_patient_id,
@@ -356,6 +355,7 @@ async def process_post_stream_actions_async(
                     f"High-risk symptoms reported: \"{last_message[:50]}...\"",
                     "Keywords indicating potentially serious symptoms were detected.",
                 )
+                patients_update_risk(patient_id, "high")
             except HTTPException:
                 pass
         
@@ -400,6 +400,7 @@ def generate_speech(request: TTSRequest):
     """Generate speech from text using ElevenLabs (app.tts)."""
     return handle_tts_request(request.text, request.voice_id)
 
+
 # --- Patients (Supabase: app.patients) ---
 
 
@@ -431,6 +432,7 @@ def create_patient(body: CreatePatientBody):
         conditions=body.conditions,
         risk_level=body.risk_level,
     )
+
 
 # --- Timeline (Supabase: app.timeline) ---
 
@@ -492,12 +494,29 @@ def create_doctor(body: CreateDoctorBody):
 
 
 @app.get("/api/doctors/me/patients")
-def get_my_patients(doctor_id: str):
+def get_my_patients():
     """
     List all patients connected to this doctor.
     Pass doctor_id as query param (UUID). With auth, resolve doctor_id from current user's token.
     """
-    return doctors_get_my_patients(doctor_id)
+    # print(res)
+    # print(res["status"])
+    #
+    # return JSONResponse(
+    #     status_code=res["status"],
+    #     content={
+    #         "uid": "Not currently signed in" if res["status"] == 400 else res["user"].id
+    #     },
+    # )
+
+    doctor = auth_get_current_user()
+    print(doctor)
+    if doctor["status"] == 400:
+        return JSONResponse(
+            status_code=doctor["status"], content={"msg": "bad request"}
+        )
+
+    return doctors_get_my_patients(doctor["user"].id)
 
 
 @app.get("/api/patients/{patient_id}/doctors")
