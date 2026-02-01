@@ -9,15 +9,18 @@ export async function addPatient(
     return { success: false };
   }
 
-  const { uid }: { uid: string } = await res.json();
+  const res_body = await res.json();
 
   const body = {
-    patientId: patient.id,
-    doctorId: uid,
+    patient_id: patient.user_id,
+    doctor_id: res_body.uid,
   };
 
-  const res2 = await fetch("http://localhost:8000/api/patient_doctors/", {
+  const res2 = await fetch("http://localhost:8000/api/patient_doctors", {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(body),
   });
 

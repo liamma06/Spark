@@ -13,11 +13,9 @@ export async function getPatients(): Promise<{
     return { success: false };
   }
 
-  const body: {
-    patients: Patient[];
-  } = await res.json();
+  const body: Patient[] = await res.json();
 
-  return { success: true, patient_list: body.patients };
+  return { success: true, patient_list: body };
 }
 
 export function usePatients() {
