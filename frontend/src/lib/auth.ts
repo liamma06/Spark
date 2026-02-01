@@ -20,8 +20,8 @@ export async function login(
       method: "POST",
     },
   );
-  if (res.status === 401){
-    return {success:false, error: "incorrect_role"};
+  if (res.status === 401) {
+    return { success: false, error: "incorrect_role" };
   }
   if (!res.ok) {
     console.log("Request did not go through");
