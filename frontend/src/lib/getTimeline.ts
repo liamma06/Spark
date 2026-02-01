@@ -9,7 +9,6 @@ export async function getTimeline(id: string): Promise<{
   if (!res.ok) {
     return { sucess: false };
   }
-  console.log(res);
 
   const body: TimelineEvent[] = await res.json();
   return { sucess: true, timeline_events: body };

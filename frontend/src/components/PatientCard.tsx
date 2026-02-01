@@ -7,10 +7,18 @@ interface PatientCardProps {
   selected?: boolean;
 }
 
-export function PatientCard({ patient, onClick }: PatientCardProps) {
+export function PatientCard({ patient, onClick, selected }: PatientCardProps) {
   return (
-    <div onClick={onClick} className="w-full my-1">
-      <div className="flex items-center gap-4 mb-4">
+    <div
+      onClick={onClick}
+      className={cn(
+        "w-full py-2 px-3 rounded-lg cursor-pointer transition-all duration-200",
+        selected
+          ? "bg-white/20 shadow-md"
+          : "hover:bg-white/10 hover:shadow-sm"
+      )}
+    >
+      <div className="flex items-center gap-4 m-auto">
         {/* Avatar */}
         <div className="w-14 h-14 flex items-center justify-center text-lg font-semibold bg-slate-200 rounded-full">
           <span className="text-slate-800">{patient.name.charAt(0)}</span>
