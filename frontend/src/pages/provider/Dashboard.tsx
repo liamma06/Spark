@@ -42,8 +42,8 @@ export function ProviderDashboard() {
   };
 
   return (
-    <div className=" min-h-screen max-w-screen w-full grid grid-cols-[5fr_0.7fr] p-8 gap-8 bg-bg px-[120px]">
-      <div className=" flex flex-col gap-6 w-full">
+    <div className=" min-h-screen  grid grid-cols-[5fr_0.7fr] p-8 gap-8 bg-bg px-[120px]">
+      <main className=" flex flex-col gap-6 min-w-0">
         {/* Main */}
         <div className="bg-bg px-6 py-8 flex flex-col gap-3">
           <div className="flex items-center justify-between pb-1">
@@ -110,7 +110,7 @@ export function ProviderDashboard() {
             <h3 className="text-xl font-medium text-slate-800 mb-4">
               Patient Timeline
             </h3>
-            <div>
+            <div className="overflow-x-clip">
               <Timeline2 events={patientTimeline} />
             </div>
           </div>
@@ -130,7 +130,7 @@ export function ProviderDashboard() {
             </div>
           </div>
         )}
-      </div>
+      </main>
       <div className="flex flex-col h-[95vh] sticky top-8">
         <div className="mb-8 h-full bg-linear-to-br from-green-gradient-dark to-green-gradient-light rounded-2xl p-6 text-white overflow-hidden flex flex-col">
           {/* Header */}

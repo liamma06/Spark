@@ -118,18 +118,14 @@ export function Home() {
             )}
           </button>
 
-          {/* Demo notice */}
-          <p className="text-center text-slate-400 text-sm mt-6">
-            Demo mode - no login required
-          </p>
         </div>
 
         {/* Right side - Logo & Title */}
         <div className="flex-1 bg-gradient-to-br from-green-gradient-dark to-green-gradient-light flex flex-col items-center justify-center p-8">
           <img
-            src="/Logo.png"
+            src="/Icon.svg"
             alt="CareBridge AI"
-            className="w-20 h-20  mb-4 rounded-2xl"
+            className="w-20 h-20 mb-4 rounded-2xl"
           />
           <h1 className="text-3xl font-bold text-slate-100 text-center">CareBridge AI</h1>
           <p className="font-light text-slate-200 mt-4 text-center max-w-xs">
