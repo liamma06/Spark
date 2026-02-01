@@ -159,7 +159,7 @@ export function RegisterPage() {
         {/* Left side - Logo & Title */}
         <div className="flex-1 bg-gradient-to-br from-green-gradient-dark to-green-gradient-light flex flex-col items-center justify-center p-8">
           <img
-            src="/Logo.png"
+            src="/Icon.svg"
             alt="CareBridge AI"
             className="w-20 h-20 mb-4 rounded-2xl"
           />
