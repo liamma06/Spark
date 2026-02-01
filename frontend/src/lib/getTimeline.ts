@@ -1,15 +1,15 @@
 import type { TimelineEvent } from "../types";
 
 export async function getTimeline(id: string): Promise<{
-  sucess: boolean;
+  success: boolean;
   timeline_events?: TimelineEvent[];
 }> {
   const res = await fetch(`http://localhost:8000/api/timeline?patientId=${id}`);
 
   if (!res.ok) {
-    return { sucess: false };
+    return { success: false };
   }
 
   const body: TimelineEvent[] = await res.json();
-  return { sucess: true, timeline_events: body };
+  return { success: true, timeline_events: body };
 }

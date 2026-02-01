@@ -38,12 +38,14 @@ export function ProviderDashboard() {
 
   const handleSelectPatient = (patient: Patient) => {
     setSelectedPatient(patient);
-    const timeline = getTimeline(patient.user_id)
+    getTimeline(patient.user_id)
       .then((res) => {
-        if (!res.sucess){
+        console.log(res);
+        if (res.success){
           setSelectedTimeline(res.timeline_events!);
         }
         else{
+          console.log(res);
         }
       })
     
@@ -67,7 +69,7 @@ export function ProviderDashboard() {
   };
 
   return (
-    <div className="grid grid-cols-[5fr_0.7fr] p-8 gap-3 bg-bg">
+    <div className="grid grid-cols-[5fr_0.7fr] p-8 gap-8 bg-bg px-[120px]">
       <div className="min-h-screen flex flex-col gap-6">
         {/* Main */}
         <div className="bg-bg px-6 py-8 flex flex-col gap-3">
@@ -87,41 +89,70 @@ export function ProviderDashboard() {
         </div>
 
         {/* Patient Stats Section */}
-        { <div className="bg-white rounded-2xl p-6 shadow-sm">
-          <h3 className="text-xl font-medium text-slate-800 mb-4">
-            { selectedPatient?.name  ?? "No Patient Selected"}
-          </h3>
-          <div className="grid grid-cols-6 gap-4 mb-6">
-            <div className="bg-gradient-to-br bg-slate-200 rounded-lg p-4 h-32 flex flex-col justify-between">
-              <p className="text-md text-slate-600">Age</p>
-              <p className="text-2xl font-bold text-slate-800">
-                {selectedPatient?.age}
-              </p>
-            </div>
-            <div className="bg-gradient-to-br bg-slate-200 rounded-lg p-4 col-span-2 h-32 flex flex-col justify-between">
-              <p className="text-md text-slate-600">Address</p>
-              <p className="text-sm font-semibold text-slate-800 line-clamp-2">
-                {selectedPatient?.address}
-              </p>
-            </div>
-            <div className="bg-gradient-to-br bg-slate-200 rounded-lg p-4 col-span-3 h-32 flex flex-col justify-between overflow-hidden">
-              <p className="text-md text-slate-600">Conditions</p>
-              <div className="flex flex-wrap gap-2 overflow-y-auto scrollbar-hide">
-                {selectedPatient?.conditions.map((condition, i) => (
-                  <span
-                    key={i}
-                    className="px-3 py-1 text-sm rounded-full bg-green-gradient-light text-slate-100 font-medium"
-                  >
-                    {condition}
-                  </span>
-                ))}
+        {selectedPatient ? (
+          <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <h3 className="text-xl font-medium text-slate-800 mb-4">
+              {selectedPatient.name} - Patient Details
+            </h3>
+            <div className="grid grid-cols-6 gap-4 mb-6">
+              <div className="bg-gradient-to-br bg-slate-200 rounded-lg p-4 h-32 flex flex-col justify-between">
+                <p className="text-md text-slate-600">Age</p>
+                <p className="text-2xl font-bold text-slate-800">
+                  {selectedPatient.age}
+                </p>
+              </div>
+              <div className="bg-gradient-to-br bg-slate-200 rounded-lg p-4 col-span-2 h-32 flex flex-col justify-between">
+                <p className="text-md text-slate-600">Address</p>
+                <p className="text-sm font-semibold text-slate-800 line-clamp-2">
+                  {selectedPatient.address}
+                </p>
+              </div>
+              <div className="bg-gradient-to-br bg-slate-200 rounded-lg p-4 col-span-3 h-32 flex flex-col justify-between overflow-hidden">
+                <p className="text-md text-slate-600">Conditions</p>
+                <div className="flex flex-wrap gap-2 overflow-y-auto scrollbar-hide">
+                  {selectedPatient.conditions.map((condition, i) => (
+                    <span
+                      key={i}
+                      className="px-3 py-1 text-sm rounded-full bg-green-gradient-light text-slate-100 font-medium"
+                    >
+                      {condition}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>}
+        ) : (
+          <div className="bg-white rounded-2xl p-12 shadow-sm flex items-center justify-center min-h-64">
+            <div className="text-center">
+              <p className="text-slate-400 text-lg">No patient selected</p>
+              <p className="text-slate-300 text-sm mt-2">Select a patient from the list to view their details</p>
+            </div>
+          </div>
+        )}
 
         {/* Timeline Section */}
-        <Timeline2 events={patientTimeline}/>
+        {`${patientTimeline.length} bababoeey`}
+        {patientTimeline.length > 0 ? (
+          <div className="bg-white rounded-2xl p-6 shadow-sm flex-1">
+            <h3 className="text-xl font-medium text-slate-800 mb-4">Patient Timeline</h3>
+            <div className="space-y-4 overflow-y-auto max-h-96 pr-4">
+              <Timeline2 events={patientTimeline}/>
+              
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl p-12 shadow-sm flex items-center justify-center flex-1">
+            <div className="text-center">
+              <p className="text-slate-400 text-lg">
+                {selectedPatient ? "No timeline events" : "Select a patient to view timeline"}
+              </p>
+              <p className="text-slate-300 text-sm mt-2">
+                {selectedPatient ? "This patient has no recorded events yet" : "Timeline events will appear here"}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
       <div className="flex flex-col h-[95vh] sticky top-8">
         <div className="mb-8 h-full bg-linear-to-br from-green-gradient-dark to-green-gradient-light rounded-2xl p-6 text-white overflow-hidden flex flex-col">
