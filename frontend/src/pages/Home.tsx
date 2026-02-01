@@ -99,7 +99,7 @@ export function Home() {
           <RoleToggle></RoleToggle>
           <a
             className="text-primary text-sm hover:underline"
-            onClick={() => {}}
+            onClick={() => {navigate("/register")}}
           >
             Register?
           </a>

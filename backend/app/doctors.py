@@ -1,6 +1,7 @@
 """
 Doctor–patient connection logic (Supabase).
-Similar to app.supabase: one module for doctor/patient_doctors data.
+Schema: patients(user_id) and doctors(user_id) are PKs; patient_doctors stores user_ids.
+We use user_id everywhere; no resolution to internal id.
 """
 
 from fastapi import HTTPException
@@ -31,20 +32,32 @@ def create_doctor(user_id: str, bio: str, specialty: str | None = None) -> dict:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def get_my_patients(doctor_id: str) -> list:
+def get_doctor_by_user_id(user_id: str) -> dict:
     """
-    List all patients connected to this doctor.
-    Raises HTTPException 404 if doctor not found, 500 on Supabase error.
+    Get one doctor by Supabase user_id (profiles.id / auth.users.id).
+    Raises HTTPException 404 if not found, 500 on Supabase error.
     """
     try:
-        doc = supabase.table("doctors").select("id").eq("id", doctor_id).execute()
-        if not doc.data or len(doc.data) == 0:
+        res = supabase.table("doctors").select("*").eq("user_id", user_id).execute()
+        if not res.data or len(res.data) == 0:
             raise HTTPException(status_code=404, detail="Doctor not found")
-        links = supabase.table("patient_doctors").select("patient_id").eq("doctor_id", doctor_id).execute()
+        return res.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def get_my_patients(doctor_user_id: str) -> list:
+    """
+    List all patients connected to this doctor. patient_doctors.doctor_id and patient_id are user_ids.
+    """
+    try:
+        links = supabase.table("patient_doctors").select("patient_id").eq("doctor_id", doctor_user_id).execute()
         if not links.data:
             return []
-        patient_ids = [r["patient_id"] for r in links.data]
-        res = supabase.table("patients").select("*").in_("id", patient_ids).execute()
+        patient_user_ids = [r["patient_id"] for r in links.data]
+        res = supabase.table("patients").select("*").in_("user_id", patient_user_ids).execute()
         return res.data or []
     except HTTPException:
         raise
@@ -52,20 +65,16 @@ def get_my_patients(doctor_id: str) -> list:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def get_patient_doctors(patient_id: str) -> list:
+def get_patient_doctors(patient_user_id: str) -> list:
     """
-    List all doctors connected to this patient.
-    Raises HTTPException 404 if patient not found, 500 on Supabase error.
+    List all doctors connected to this patient. patient_doctors stores user_ids.
     """
     try:
-        pat = supabase.table("patients").select("id").eq("id", patient_id).execute()
-        if not pat.data or len(pat.data) == 0:
-            raise HTTPException(status_code=404, detail="Patient not found")
-        links = supabase.table("patient_doctors").select("doctor_id").eq("patient_id", patient_id).execute()
+        links = supabase.table("patient_doctors").select("doctor_id").eq("patient_id", patient_user_id).execute()
         if not links.data:
             return []
-        doctor_ids = [r["doctor_id"] for r in links.data]
-        res = supabase.table("doctors").select("*").in_("id", doctor_ids).execute()
+        doctor_user_ids = [r["doctor_id"] for r in links.data]
+        res = supabase.table("doctors").select("*").in_("user_id", doctor_user_ids).execute()
         return res.data or []
     except HTTPException:
         raise
@@ -73,42 +82,33 @@ def get_patient_doctors(patient_id: str) -> list:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def connect_patient_doctor(patient_id: str, doctor_id: str) -> dict:
+def connect_patient_doctor(patient_user_id: str, doctor_user_id: str) -> dict:
     """
-    Connect a doctor to a patient (insert into patient_doctors).
-    Returns {"message": "Linked", ...} or {"message": "Already linked", ...} on duplicate.
-    Raises HTTPException 404 if patient/doctor not found, 500 on other error.
+    Connect a doctor to a patient. patient_doctors stores (patient_id, doctor_id) as user_ids.
     """
     try:
-        pat = supabase.table("patients").select("id").eq("id", patient_id).execute()
-        doc = supabase.table("doctors").select("id").eq("id", doctor_id).execute()
-        if not pat.data or len(pat.data) == 0:
-            raise HTTPException(status_code=404, detail="Patient not found")
-        if not doc.data or len(doc.data) == 0:
-            raise HTTPException(status_code=404, detail="Doctor not found")
         supabase.table("patient_doctors").insert({
-            "patient_id": patient_id,
-            "doctor_id": doctor_id,
+            "patient_id": patient_user_id,
+            "doctor_id": doctor_user_id,
         }).execute()
-        return {"message": "Linked", "patient_id": patient_id, "doctor_id": doctor_id}
+        return {"message": "Linked", "patient_user_id": patient_user_id, "doctor_user_id": doctor_user_id}
     except HTTPException:
         raise
     except Exception as e:
         err_msg = str(e).lower()
         if "duplicate" in err_msg or "unique" in err_msg or "conflict" in err_msg:
-            return {"message": "Already linked", "patient_id": patient_id, "doctor_id": doctor_id}
+            return {"message": "Already linked", "patient_user_id": patient_user_id, "doctor_user_id": doctor_user_id}
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def disconnect_patient_doctor(patient_id: str, doctor_id: str) -> dict:
+def disconnect_patient_doctor(patient_user_id: str, doctor_user_id: str) -> dict:
     """
-    Remove the connection between a doctor and a patient.
-    Returns {"message": "Unlinked", ...}. Raises HTTPException 404 if link not found.
+    Remove the connection. patient_doctors keys are user_ids.
     """
     try:
-        res = supabase.table("patient_doctors").delete().eq("patient_id", patient_id).eq("doctor_id", doctor_id).execute()
+        res = supabase.table("patient_doctors").delete().eq("patient_id", patient_user_id).eq("doctor_id", doctor_user_id).execute()
         if res.data is not None and len(res.data) > 0:
-            return {"message": "Unlinked", "patient_id": patient_id, "doctor_id": doctor_id}
+            return {"message": "Unlinked", "patient_user_id": patient_user_id, "doctor_user_id": doctor_user_id}
         raise HTTPException(status_code=404, detail="Link not found")
     except HTTPException:
         raise

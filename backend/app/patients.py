@@ -22,13 +22,13 @@ def get_patients() -> list:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def get_patient(patient_id: str) -> dict:
+def get_patient(user_id: str) -> dict:
     """
-    Get one patient by id.
+    Get one patient by user_id.
     Raises HTTPException 404 if not found, 500 on Supabase error.
     """
     try:
-        res = supabase.table("patients").select("*").eq("id", patient_id).execute()
+        res = supabase.table("patients").select("*").eq("", user_id).execute()
         if not res.data or len(res.data) == 0:
             raise HTTPException(status_code=404, detail="Patient not found")
         return res.data[0]
@@ -36,6 +36,8 @@ def get_patient(patient_id: str) -> dict:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
 
 
 def search_patients_by_name(name_query: str) -> list:
@@ -94,17 +96,3 @@ def create_patient(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def update_patient_risk(patient_id: str, risk_level: str) -> dict:
-    """
-    Update a patient's risk_level.
-    Raises HTTPException 404 if patient not found, 500 on Supabase error.
-    """
-    try:
-        res = supabase.table("patients").update({"risk_level": risk_level}).eq("id", patient_id).execute()
-        if not res.data or len(res.data) == 0:
-            raise HTTPException(status_code=404, detail="Patient not found")
-        return res.data[0]
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

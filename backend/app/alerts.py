@@ -58,19 +58,19 @@ def acknowledge_alert(alert_id: str) -> dict:
 
 
 def create_alert(
-    patient_id: str,
+    patient_user_id: str,
     severity: str,
     message: str,
     reasoning: str | None = None,
 ) -> dict:
     """
-    Insert an alert row in public.alerts.
+    Insert an alert row. alerts.patient_id references patients(user_id), so we store patient_user_id.
     severity: 'warning' or 'critical'. Returns the created row.
     """
     try:
         payload = {
-            "patient_id": patient_id,
-            "severity": severity, #warning or critical
+            "patient_id": patient_user_id,
+            "severity": severity,
             "message": message,
             "reasoning": reasoning,
             "acknowledged": False,

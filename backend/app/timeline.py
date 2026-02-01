@@ -1,6 +1,6 @@
 """
 Timeline events (Supabase).
-Uses public.timeline_events: id, patient_id, type, title, details (jsonb), created_at.
+Schema: timeline_events.patient_id references patients(user_id). We use user_id directly.
 """
 
 import logging
@@ -21,9 +21,8 @@ def is_valid_uuid(uuid_string: str) -> bool:
 
 def get_timeline(patient_id: str | None = None) -> list:
     """
-    List timeline events from public.timeline_events.
-    If patient_id is set, filter by that patient; otherwise return all.
-    Returns list of rows (snake_case keys). Empty list on error or no rows.
+    List timeline events. If patient_id is set, filter by that patient.
+    Note: patient_id in DB references patients table (can be user_id or patient UUID depending on schema).
     """
     # Validate patient_id is a valid UUID if provided
     if patient_id and not is_valid_uuid(patient_id):
