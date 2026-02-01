@@ -9,6 +9,7 @@ export function PatientChat() {
   const [userId, setUserId] = useState<string | null>(null);
   const [showSummary, setShowSummary] = useState(false);
   const [summary, setSummary] = useState("");
+  const [callEnded, setCallEnded] = useState(false);
   const chatEndCallRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
@@ -33,29 +34,32 @@ export function PatientChat() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={async () => {
-                if (chatEndCallRef.current) {
-                  await chatEndCallRef.current();
-                }
-              }}
-              className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-full font-medium hover:from-red-600 hover:to-red-700 transition-all shadow-sm flex items-center gap-2"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            {!callEnded && (
+              <button
+                onClick={async () => {
+                  setCallEnded(true);
+                  if (chatEndCallRef.current) {
+                    await chatEndCallRef.current();
+                  }
+                }}
+                className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-full font-medium hover:from-red-600 hover:to-red-700 transition-all shadow-sm flex items-center gap-2"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 8l-8 8m0-8l8 8"
-                />
-              </svg>
-              End Call
-            </button>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 8l-8 8m0-8l8 8"
+                  />
+                </svg>
+                End Call
+              </button>
+            )}
           </div>
         </div>
       </header>
