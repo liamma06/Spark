@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { patientsApi, alertsApi, timelineApi } from "../lib/api";
 import type { Patient, Alert, TimelineEvent } from "../types";
+import { getTimeline } from "../lib/getTimeline";
 
 export function usePatients() {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -95,8 +96,11 @@ export function useTimeline(patientId: string | null) {
 
     setLoading(true);
     try {
-      const data = await timelineApi.getByPatient(patientId);
-      setEvents(data);
+      const data = await getTimeline(patientId);
+      if (data.success) {
+        console.log(data);
+        setEvents(data.timeline_events!);
+      }
       // Transform snake_case to camelCase
     } catch (error) {
       console.error("Failed to fetch timeline events:", error);

@@ -32,10 +32,22 @@ export const timelineApi = {
     apiFetch<import("../types").TimelineEvent[]>(
       `/timeline?patientId=${patientId}`,
     ),
-  create: (patientId: string, type: string, title: string, details?: string, date?: string) =>
+  create: (
+    patientId: string,
+    type: string,
+    title: string,
+    details?: string,
+    date?: string,
+  ) =>
     apiFetch<import("../types").TimelineEvent>("/timeline", {
       method: "POST",
-      body: JSON.stringify({ patientId, type, title, details, createdAt: date }),
+      body: JSON.stringify({
+        patientId,
+        type,
+        title,
+        details,
+        createdAt: date,
+      }),
     }),
   delete: (eventId: string) =>
     apiFetch<{ success: boolean; message: string }>(`/timeline/${eventId}`, {
@@ -150,4 +162,3 @@ export async function generateSpeech(
 
   return res.blob();
 }
-

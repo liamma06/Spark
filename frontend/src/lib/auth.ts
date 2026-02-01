@@ -20,8 +20,8 @@ export async function login(
       method: "POST",
     },
   );
-  if (res.status === 401){
-    return {success:false, error: "incorrect_role"};
+  if (res.status === 401) {
+    return { success: false, error: "incorrect_role" };
   }
   if (!res.ok) {
     console.log("Request did not go through");
@@ -115,10 +115,11 @@ export async function signOut() {
 
 export async function getCurrentUserId(): Promise<string | null> {
   try {
-    const cached = localStorage.getItem("userId");
-    if (cached) {
-      return cached;
-    }
+    // const cached = localStorage.getItem("userId");
+    // if (cached) {
+    //   console.log("Cached return");
+    //   return cached;
+    // }
     const res = await fetch("http://localhost:8000/auth/getuser");
     if (!res.ok) {
       console.error("getCurrentUserId: Response not OK", res.status);
@@ -126,12 +127,7 @@ export async function getCurrentUserId(): Promise<string | null> {
     }
     const data = await res.json();
     console.log("getCurrentUserId response:", data);
-    if (data.status === 200 && data.user?.id) {
-      console.log("Found user ID:", data.user.id);
-      return data.user.id;
-    }
-    console.warn("getCurrentUserId: No user ID found in response", data);
-    return null;
+    return data.uid;
   } catch (error) {
     console.error("Failed to get current user:", error);
     return null;

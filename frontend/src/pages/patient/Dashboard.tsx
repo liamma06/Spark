@@ -118,7 +118,7 @@ export function PatientDashboard() {
           {/* Timeline */}
           {userId ? (
             <Timeline2
-              events={events.length > 0 ? events : dummyTimelineEvents}
+              events={events.length > 0 ? events : []}
               patientId={userId}
               onEventsChange={refetchTimeline}
             />
