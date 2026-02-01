@@ -10,7 +10,7 @@ export async function login(
   email: string,
   password: string,
   role: UserRole,
-): Promise<{ success: boolean; error?: LoginError }> {
+): Promise<{ success: boolean; error?: LoginError; userId?: string }> {
   if (email == "" || password == "") {
     return { success: false, error: "empty_fields" };
   }
@@ -29,7 +29,11 @@ export async function login(
   }
   const body = await res.json();
   console.log(body);
-  return { success: true };
+  const userId = typeof body === "string" ? body : body?.user?.id || body?.id;
+  if (userId) {
+    localStorage.setItem("userId", userId);
+  }
+  return { success: true, userId };
 }
 export async function registerPatient(
   email: string,
@@ -105,11 +109,16 @@ export async function signOut() {
     return { error: "invalid_credentials", success: false };
   }
 
+  localStorage.removeItem("userId");
   return { success: true };
 }
 
 export async function getCurrentUserId(): Promise<string | null> {
   try {
+    const cached = localStorage.getItem("userId");
+    if (cached) {
+      return cached;
+    }
     const res = await fetch("http://localhost:8000/auth/getuser");
     if (!res.ok) {
       console.error("getCurrentUserId: Response not OK", res.status);

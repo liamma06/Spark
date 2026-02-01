@@ -1,14 +1,22 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAppStore } from "../../stores/appStore";
 import { Chat as ChatComponent } from "../../components/Chat";
 import { RoleToggleRegister } from "../../components/RoleToggle";
 import { SummaryPopup } from "../../components/SummaryPopup";
+import { getCurrentUserId } from "../../lib/auth";
 
 export function PatientChat() {
   const { currentPatientId } = useAppStore();
+  const [userId, setUserId] = useState<string | null>(null);
   const [showSummary, setShowSummary] = useState(false);
   const [summary, setSummary] = useState("");
   const chatEndCallRef = useRef<(() => Promise<void>) | null>(null);
+
+  useEffect(() => {
+    getCurrentUserId().then((id) => {
+      setUserId(id || null);
+    });
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -43,7 +51,7 @@ export function PatientChat() {
       <main className="flex-1 max-w-7xl w-full mx-auto p-6">
         <div className="h-[calc(100vh-140px)]">
           <ChatComponent 
-            patientId={currentPatientId || "demo"} 
+            patientId={currentPatientId || userId || ""} 
             onEndCall={(result) => {
               setSummary(result.summary);
               setShowSummary(true);

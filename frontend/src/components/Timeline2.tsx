@@ -17,7 +17,7 @@ function Timeline2(props: Timeline2Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleAddEvent = async (type: TimelineEventType, title: string, details?: string) => {
+  const handleAddEvent = async (type: TimelineEventType, title: string, details?: string, date?: string) => {
     if (!props.patientId) {
       alert("User ID is required. Please sign in to add events.");
       return;
@@ -29,7 +29,8 @@ function Timeline2(props: Timeline2Props) {
         props.patientId,
         type,
         title,
-        details
+        details,
+        date
       );
       setShowAddPopup(false);
       if (props.onEventsChange) {
