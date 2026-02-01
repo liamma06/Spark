@@ -43,7 +43,7 @@ export interface TimelineEvent {
   patientId: string;
   type: TimelineEventType;
   title: string;
-  details?: string;
+  details?: {text: string};
   createdAt: Date;
 }
 
