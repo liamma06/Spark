@@ -13,7 +13,7 @@ from app.supabase import (
     sign_out as auth_sign_out,
     get_current_user as auth_get_current_user,
 )
-from app.cohere_chat import get_system_prompt, assess_risk, stream_chat, generate_summary
+from app.cohere_chat import get_system_prompt, assess_risk, stream_chat, generate_summary, extract_timeline_events
 from app.tts import handle_tts_request
 from app.doctors import (
     create_doctor as doctors_create,
@@ -27,6 +27,7 @@ from app.patients import (
     get_patient as patients_get_patient,
     search_patients_by_name as patients_search_by_name,
     create_patient as patients_create,
+    resolve_patient_id as patients_resolve_patient_id,
 )
 from app.alerts import (
     get_alerts as alerts_get_alerts,
@@ -42,6 +43,11 @@ from app.timeline import (
 
 # Load environment variables
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
 
 app = FastAPI(title="CareBridge API")
 
@@ -250,22 +256,33 @@ def end_call(request: ChatRequest):
 async def chat(request: ChatRequest):
     """Stream chat responses from Cohere (app.cohere_chat)."""
     system_prompt = get_system_prompt()
+    resolved_patient_id = None
     if request.patientId:
         try:
             patient = patients_get_patient(request.patientId)
             conds = patient.get("conditions") or []
             conditions = ", ".join(conds) if conds else "None reported"
             system_prompt += f"\n\nPatient context: {patient['name']}, {patient['age']} years old. Known conditions: {conditions}."
+            resolved_patient_id = patient.get("id")
         except HTTPException:
             pass
     messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
     last_message = request.messages[-1].content if request.messages else ""
 
     async def generate():
+        import logging
+        nonlocal resolved_patient_id
+        logging.info(f"Chat request received. patientId: {request.patientId}, message count: {len(request.messages)}")
         try:
             for chunk in stream_chat(messages, system_prompt):
                 yield chunk
+            logging.info(f"Streaming completed. patientId: {request.patientId}")
             if request.patientId:
+                logging.info(f"Processing post-stream actions for patientId: {request.patientId}")
+                if not resolved_patient_id:
+                    resolved_patient_id = patients_resolve_patient_id(request.patientId)
+                if not resolved_patient_id:
+                    logging.warning(f"No patient found for timeline events. patientId: {request.patientId}")
                 risk_level = assess_risk(last_message)
                 if risk_level == "high":
                     try:
@@ -277,9 +294,41 @@ async def chat(request: ChatRequest):
                         )
                     except HTTPException:
                         pass
+                
+                # Extract and create timeline events from the conversation
+                import logging
+                logging.info(f"Attempting to extract timeline events from message: {last_message[:100]}")
+                try:
+                    extracted_events = extract_timeline_events(last_message, messages)
+                    logging.info(f"Extracted {len(extracted_events)} timeline events: {extracted_events}")
+                    for event in extracted_events:
+                        try:
+                            if not resolved_patient_id:
+                                logging.warning("Skipping timeline event creation: patient not resolved")
+                                break
+                            # Convert date string to proper format for timeline_add_event
+                            date_str = event.get("date")
+                            logging.info(f"Creating timeline event: type={event.get('type')}, title={event.get('title')}, date={date_str}")
+                            timeline_add_event(
+                                resolved_patient_id,
+                                event["type"],
+                                event["title"],
+                                event.get("details", ""),
+                                date_str  # This will be passed as created_at parameter
+                            )
+                            logging.info(f"Successfully created timeline event: {event.get('title')}")
+                        except HTTPException as he:
+                            logging.error(f"HTTPException creating timeline event: {he.detail}")
+                        except Exception as e:
+                            logging.error(f"Failed to create timeline event: {type(e).__name__}: {e}", exc_info=True)
+                except Exception as e:
+                    logging.error(f"Failed to extract timeline events: {type(e).__name__}: {e}", exc_info=True)
+                
+                # Still create a general chat event
                 details = last_message[:100] + "..." if len(last_message) > 100 else last_message
                 try:
-                    timeline_add_event(request.patientId, "chat", "AI conversation", details)
+                    if resolved_patient_id:
+                        timeline_add_event(resolved_patient_id, "chat", "AI conversation", details)
                 except HTTPException:
                     pass
         except Exception as e:

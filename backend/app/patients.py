@@ -3,6 +3,7 @@ Patient data (Supabase).
 Same pattern as app.doctors: one module for public.patients.
 """
 
+import logging
 from fastapi import HTTPException
 
 from app.supabase import supabase
@@ -22,13 +23,16 @@ def get_patients() -> list:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def get_patient(user_id: str) -> dict:
+logger = logging.getLogger(__name__)
+
+
+def get_patient_by_id(patient_id: str) -> dict:
     """
-    Get one patient by user_id.
+    Get one patient by patients.id.
     Raises HTTPException 404 if not found, 500 on Supabase error.
     """
     try:
-        res = supabase.table("patients").select("*").eq("", user_id).execute()
+        res = supabase.table("patients").select("*").eq("id", patient_id).execute()
         if not res.data or len(res.data) == 0:
             raise HTTPException(status_code=404, detail="Patient not found")
         return res.data[0]
@@ -36,6 +40,59 @@ def get_patient(user_id: str) -> dict:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def get_patient_by_user_id(user_id: str) -> dict:
+    """
+    Get one patient by patients.user_id (auth user id).
+    Raises HTTPException 404 if not found, 500 on Supabase error.
+    """
+    try:
+        res = supabase.table("patients").select("*").eq("user_id", user_id).execute()
+        if not res.data or len(res.data) == 0:
+            raise HTTPException(status_code=404, detail="Patient not found")
+        return res.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def get_patient(identifier: str) -> dict:
+    """
+    Get one patient by patients.id or patients.user_id.
+    Tries id first, then user_id.
+    """
+    try:
+        return get_patient_by_id(identifier)
+    except HTTPException as he:
+        if he.status_code != 404:
+            raise
+    return get_patient_by_user_id(identifier)
+
+
+def resolve_patient_id(identifier: str) -> str | None:
+    """
+    Resolve a patient identifier to patients.id.
+    Accepts either patients.id or patients.user_id. Returns None if not found.
+    """
+    if not identifier:
+        return None
+    try:
+        res = supabase.table("patients").select("id").eq("id", identifier).execute()
+        if res.data and len(res.data) > 0:
+            return res.data[0].get("id")
+    except Exception as e:
+        logger.warning(f"Failed to resolve patient id by patients.id: {e}")
+
+    try:
+        res = supabase.table("patients").select("id").eq("user_id", identifier).execute()
+        if res.data and len(res.data) > 0:
+            return res.data[0].get("id")
+    except Exception as e:
+        logger.warning(f"Failed to resolve patient id by patients.user_id: {e}")
+
+    return None
 
 
 

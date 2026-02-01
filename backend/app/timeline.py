@@ -8,6 +8,7 @@ import re
 from fastapi import HTTPException
 
 from app.supabase import supabase
+from app.patients import resolve_patient_id
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +29,18 @@ def get_timeline(patient_id: str | None = None) -> list:
     if patient_id and not is_valid_uuid(patient_id):
         logger.warning(f"Invalid UUID format for patient_id: {patient_id}. Returning empty list.")
         return []
+
+    resolved_patient_id = None
+    if patient_id:
+        resolved_patient_id = resolve_patient_id(patient_id)
+        if not resolved_patient_id:
+            logger.warning(f"No patient found for identifier: {patient_id}. Returning empty list.")
+            return []
     
     try:
         q = supabase.table("timeline_events").select("*")
-        if patient_id:
-            q = q.eq("patient_id", patient_id)
+        if resolved_patient_id:
+            q = q.eq("patient_id", resolved_patient_id)
         res = q.execute()
         data = res.data or []
         # Sort by created_at descending (newest first)
@@ -68,8 +76,12 @@ def add_event(
     Returns the created row.
     """
     try:
+        resolved_patient_id = resolve_patient_id(patient_id)
+        if not resolved_patient_id:
+            logger.error(f"Cannot create timeline event. No patient found for identifier: {patient_id}")
+            raise HTTPException(status_code=404, detail="Patient not found for timeline event")
         payload = {
-            "patient_id": patient_id,
+            "patient_id": resolved_patient_id,
             "type": type,
             "title": title,
         }
@@ -89,6 +101,7 @@ def add_event(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Error creating timeline event: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
