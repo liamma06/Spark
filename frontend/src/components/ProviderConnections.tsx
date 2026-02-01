@@ -4,9 +4,10 @@ import { ProviderCard } from "./ProviderCard";
 interface ProviderConnectionsProps {
   providers: Provider[];
   error?: boolean;
+  onProviderClick?: (provider: Provider) => void;
 }
 
-export function ProviderConnections({ providers, error }: ProviderConnectionsProps) {
+export function ProviderConnections({ providers, error, onProviderClick }: ProviderConnectionsProps) {
   return (
     <div className="bg-white rounded-2xl p-6">
       <div className="flex items-center justify-between mb-6">
@@ -46,7 +47,11 @@ export function ProviderConnections({ providers, error }: ProviderConnectionsPro
       ) : providers.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {providers.map((provider, index) => (
-            <ProviderCard key={index} provider={provider} />
+            <ProviderCard
+              key={index}
+              provider={provider}
+              onClick={() => onProviderClick?.(provider)}
+            />
           ))}
         </div>
       ) : (

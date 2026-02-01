@@ -2,11 +2,15 @@ import type { Provider } from "../types";
 
 interface ProviderCardProps {
   provider: Provider;
+  onClick?: () => void;
 }
 
-export function ProviderCard({ provider }: ProviderCardProps) {
+export function ProviderCard({ provider, onClick }: ProviderCardProps) {
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-slate-300 transition">
+    <div
+      onClick={onClick}
+      className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-slate-300 transition cursor-pointer hover:shadow-md"
+    >
       <div className="flex items-start justify-between mb-3">
         <div>
           <h3 className="text-lg font-semibold text-slate-800">

@@ -2,16 +2,20 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useTimeline } from "../../hooks/usePatients";
 import { dummyTimelineEvents } from "../../types/dummyTimeline";
-import { dummyProviders } from "../../types/dummyProviders";
 import CircleArrow from "../../components/CircleArrow";
 import Timeline2 from "../../components/Timeline2";
 import { ProviderConnections } from "../../components/ProviderConnections";
+import { ProviderProfileModal } from "../../components/ProviderProfileModal";
 import { signOut, getCurrentUserId } from "../../lib/auth";
 import { useMyDoctors } from "../../lib/getMyDoctor";
+import type { Provider } from "../../types";
 
 export function PatientDashboard() {
   const navigate = useNavigate();
   const [userId, setUserId] = useState<string | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(
+    null,
+  );
 
   useEffect(() => {
     // Get the current user's ID (user_id from auth) - this is what we use for timeline events
@@ -25,7 +29,11 @@ export function PatientDashboard() {
   const { events, refetch: refetchTimeline } = useTimeline(userId);
 
   // Fetch user's doctors
-  const { doctors, loading: doctorsLoading, error: doctorsError } = useMyDoctors();
+  const {
+    doctors,
+    loading: doctorsLoading,
+    error: doctorsError,
+  } = useMyDoctors();
 
   const handleSignOut = () => {
     signOut();
@@ -97,10 +105,21 @@ export function PatientDashboard() {
             </div>
           </Link>
         </div>
-        <div>
+        <div className="pb-3">
           {/* Provider Connections */}
-          <ProviderConnections providers={doctors} error={doctorsError} />
+          <ProviderConnections
+            providers={doctors}
+            error={doctorsError}
+            onProviderClick={setSelectedProvider}
+          />
         </div>
+
+        {/* Provider Profile Modal */}
+        <ProviderProfileModal
+          isOpen={selectedProvider !== null}
+          provider={selectedProvider}
+          onClose={() => setSelectedProvider(null)}
+        />
 
         <div>
           {/* Timeline */}

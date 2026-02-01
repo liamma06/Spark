@@ -17,6 +17,7 @@ export async function getMyDoctors(userId: string): Promise<{
     }
 
     const body: Provider[] = await res.json();
+    console.log(body);
 
     return { success: true, doctors: body };
   } catch (error) {
