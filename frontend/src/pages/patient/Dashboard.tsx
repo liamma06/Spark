@@ -1,16 +1,27 @@
 import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { useAppStore } from "../../stores/appStore";
 import { useTimeline } from "../../hooks/usePatients";
 import { Timeline } from "../../components/Timeline";
 import { dummyTimelineEvents } from "../../types/dummyTimeline";
 import CircleArrow from "../../components/CircleArrow";
 import Timeline2 from "../../components/Timeline2";
-import { signOut } from "../../lib/auth";
+import { signOut, getCurrentUserId } from "../../lib/auth";
 
 export function PatientDashboard() {
   const navigate = useNavigate();
-  const { currentPatientId } = useAppStore();
-  const { events, loading } = useTimeline(currentPatientId);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Get the current user's ID (user_id from auth) - this is what we use for timeline events
+    getCurrentUserId().then((id) => {
+      console.log("Dashboard: Got userId:", id);
+      setUserId(id);
+    });
+  }, []);
+
+  // Use userId for timeline (patient_id in DB is actually user_id)
+  const { events, loading, refetch: refetchTimeline } = useTimeline(userId);
 
   const handleSignOut = () => {
     signOut()
@@ -115,7 +126,18 @@ export function PatientDashboard() {
         </div>
         <div>
           {/* Timeline */}
-          <Timeline2 events={dummyTimelineEvents}></Timeline2>
+          {userId ? (
+            <Timeline2 
+              events={events.length > 0 ? events : dummyTimelineEvents}
+              patientId={userId}
+              onEventsChange={refetchTimeline}
+            />
+          ) : (
+            <div className="bg-white flex flex-col p-6 rounded-2xl">
+              <div className="text-lg font-medium pb-2">Health Timeline</div>
+              <p className="text-slate-400">Loading user information...</p>
+            </div>
+          )}
         </div>
       </main>
     </div>

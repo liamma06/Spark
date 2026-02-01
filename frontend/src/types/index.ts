@@ -1,11 +1,13 @@
 // Patient types
 export interface Patient {
   id: string;
+  user_id: string;
   name: string;
   age: number;
   conditions: string[];
   createdAt: Date;
   address: string;
+  riskLevel?: "low" | "medium" | "high";
 }
 export interface Provider {
   name: string;
