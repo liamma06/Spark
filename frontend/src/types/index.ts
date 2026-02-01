@@ -6,6 +6,7 @@ export interface Patient {
   conditions: string[];
   createdAt: Date;
   address: string;
+  riskLevel?: "low" | "medium" | "high";
 }
 export interface Provider {
   name: string;

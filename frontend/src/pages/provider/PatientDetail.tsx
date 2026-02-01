@@ -129,10 +129,10 @@ export function PatientDetail() {
               <span
                 className={cn(
                   "px-4 py-2 rounded-full text-sm font-semibold capitalize",
-                  getRiskColor(patient.riskLevel),
+                  getRiskColor(patient.riskLevel ?? "low"),
                 )}
               >
-                {patient.riskLevel} Risk
+                {patient.riskLevel ?? "low"} Risk
               </span>
             </div>
           </div>
