@@ -137,20 +137,21 @@ def extract_timeline_events(message: str, conversation_context: list[dict] = Non
             if msg.get('role') != 'system'
         ])
     
-    extraction_prompt = """You are a medical data extraction assistant. Analyze the user's message and extract any symptoms or appointments mentioned.
+    extraction_prompt = """You are a medical data extraction assistant. Analyze the user's message and extract any symptoms, appointments, or medications mentioned.
 
-For each symptom or appointment found, extract:
-- type: must be exactly "symptom" or "appointment" (no other values)
-- title: A brief title (e.g., "Headache started", "Doctor appointment scheduled")
-- details: When it started/occurred, severity, duration, or appointment details
+For each symptom, appointment, or medication found, extract:
+- type: must be exactly "symptom", "appointment", or "medication" (no other values)
+- title: A brief title (e.g., "Headache started", "Doctor appointment scheduled", "Started taking Aspirin")
+- details: When it started/occurred, severity, duration, medication dosage, or appointment details
 - date: The date mentioned in YYYY-MM-DD format (convert relative dates like "yesterday", "3 days ago" to actual dates, or use today's date if not specified)
 
-CRITICAL: Return ONLY a valid JSON array. No other text. If no symptoms or appointments are found, return exactly: []
+CRITICAL: Return ONLY a valid JSON array. No other text. If no symptoms, appointments, or medications are found, return exactly: []
 
 Valid format examples:
 - "I had a headache yesterday" -> [{{"type": "symptom", "title": "Headache", "details": "Started yesterday", "date": "2024-01-15"}}]
 - "I have an appointment next Monday" -> [{{"type": "appointment", "title": "Doctor appointment", "details": "Scheduled for next Monday", "date": "2024-01-22"}}]
 - "I've been feeling dizzy for 3 days" -> [{{"type": "symptom", "title": "Dizziness", "details": "Started 3 days ago, ongoing", "date": "2024-01-13"}}]
+- "I started taking ibuprofen 2 days ago" -> [{{"type": "medication", "title": "Ibuprofen", "details": "Started taking 2 days ago", "date": "2024-01-14"}}]
 
 Today's date: {today_date}
 
@@ -293,7 +294,7 @@ Remember: Return ONLY the JSON array, nothing else."""
                 
                 # Check if type is valid - use .get() to avoid KeyError
                 event_type = event.get("type")
-                if not event_type or event_type not in ["symptom", "appointment"]:
+                if not event_type or event_type not in ["symptom", "appointment", "medication"]:
                     import logging
                     logging.debug(f"Skipping event {idx}: invalid type '{event_type}', event keys: {list(event.keys()) if isinstance(event, dict) else 'N/A'}")
                     continue
