@@ -168,82 +168,82 @@ export function Chat({ patientId, onEndCall, endCallRef }: ChatProps) {
 
       {/* Chat Interface - Right Side */}
       <div className="flex-1 flex flex-col bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-        {/* Header */}
+      {/* Header */}
         <div className="px-6 py-5 border-b border-slate-200 bg-gradient-to-r from-green-gradient-dark to-green-gradient-light">
           <h2 className="text-xl font-medium text-white">Care Companion</h2>
           <p className="text-sm text-green-100 mt-1">I'm here to help with your health questions</p>
-        </div>
+      </div>
 
-        {/* Messages */}
+      {/* Messages */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50">
-          {messages.length === 0 && (
+        {messages.length === 0 && (
             <div className="text-center text-slate-400 py-16">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-green-gradient-dark to-green-gradient-light flex items-center justify-center text-3xl">
                 💬
               </div>
               <p className="text-lg font-medium text-slate-600 mb-1">Start a conversation</p>
               <p className="text-sm secondary-text">Describe how you're feeling today</p>
-            </div>
-          )}
-          
-          {messages.map((msg) => (
+          </div>
+        )}
+        
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            className={cn(
+              'flex',
+              msg.role === 'user' ? 'justify-end' : 'justify-start'
+            )}
+          >
             <div
-              key={msg.id}
               className={cn(
-                'flex',
-                msg.role === 'user' ? 'justify-end' : 'justify-start'
-              )}
-            >
-              <div
-                className={cn(
                   'max-w-[80%] rounded-2xl px-5 py-3.5 shadow-sm',
-                  msg.role === 'user'
+                msg.role === 'user'
                     ? 'bg-gradient-to-br from-green-gradient-dark to-green-gradient-light text-white'
                     : 'bg-white text-slate-800 border border-slate-200'
-                )}
-              >
+              )}
+            >
                 <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                <p
-                  className={cn(
+              <p
+                className={cn(
                     'text-xs mt-2',
                     msg.role === 'user' ? 'text-green-100' : 'text-slate-400'
-                  )}
-                >
-                  {formatDate(msg.createdAt)}
-                </p>
-              </div>
+                )}
+              >
+                {formatDate(msg.createdAt)}
+              </p>
             </div>
-          ))}
-          
-          {isLoading && messages[messages.length - 1]?.content === '' && (
-            <div className="flex justify-start">
+          </div>
+        ))}
+        
+        {isLoading && messages[messages.length - 1]?.content === '' && (
+          <div className="flex justify-start">
               <div className="bg-white rounded-2xl px-5 py-3.5 shadow-sm border border-slate-200">
                 <div className="flex space-x-1.5">
                   <div className="w-2 h-2 bg-primary rounded-full animate-bounce" />
                   <div className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:0.15s]" />
                   <div className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:0.3s]" />
-                </div>
               </div>
             </div>
-          )}
-          
-          <div ref={messagesEndRef} />
-        </div>
+          </div>
+        )}
+        
+        <div ref={messagesEndRef} />
+      </div>
 
-        {/* Input */}
+      {/* Input */}
         <form onSubmit={handleSubmit} className="p-5 border-t border-slate-200 bg-white">
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Describe how you're feeling..."
+        <div className="flex gap-3">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Describe how you're feeling..."
               className="flex-1 px-4 py-3 rounded-xl border border-slate-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all bg-white text-slate-800 placeholder:text-slate-400"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              disabled={isLoading || !input.trim()}
+            disabled={isLoading}
+          />
+          <button
+            type="submit"
+            disabled={isLoading || !input.trim()}
               className="px-6 py-3 bg-gradient-to-r from-green-gradient-dark to-green-gradient-light text-white rounded-xl font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm flex items-center gap-2"
             >
               {isLoading ? (
@@ -275,12 +275,12 @@ export function Chat({ patientId, onEndCall, endCallRef }: ChatProps) {
                       d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
                     />
                   </svg>
-                  Send
+            Send
                 </>
               )}
-            </button>
-          </div>
-        </form>
+          </button>
+        </div>
+      </form>
       </div>
     </div>
   );

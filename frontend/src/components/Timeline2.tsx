@@ -4,6 +4,7 @@ import AccentButton from "./AccentButton";
 import { timelineApi } from "../lib/api";
 import { AddEventPopup } from "./AddEventPopup";
 import { EventDetailsPopup } from "./EventDetailsPopup";
+import { getEventBorderColor, getEventDotColor } from "../lib/utils";
 
 interface Timeline2Props {
   events: TimelineEvent[];
@@ -95,7 +96,7 @@ function Timeline2(props: Timeline2Props) {
                 date={new Date(event.created_at)}
               >
                 <div
-                  className={`ml-[0.325em] border-l-2 border-b-2 ${event.type == "medication" ? "border-red-500" : "border-primary"} pt-10 p-3 rounded-bl-2xl mr-10 mt-3`}
+                  className={`ml-[0.325em] border-l-2 border-b-2 ${getEventBorderColor(event.type)} pt-10 p-3 rounded-bl-2xl mr-10 mt-3`}
                 >
                   <button
                     onClick={() => handleEventClick(event)}
@@ -174,7 +175,7 @@ function TimelineNode(props: TimelineNodeProps) {
     <div className="flex flex-col min-w-70">
       <div className="text-xs pb-4 opacity-60">{date(props.date)}</div>
       <div className="flex flex-row justify-start items-center">
-        <div className="rounded-full h-3 w-3 bg-primary flex items-center justify-center">
+        <div className={`rounded-full h-3 w-3 ${getEventDotColor(props.type)} flex items-center justify-center`}>
           <div className="rounded-full h-2 w-2 bg-bg"></div>
         </div>
 

@@ -53,11 +53,11 @@ export function PatientDashboard() {
                 alt="CareBridge AI"
                 className="w-12 h-12 rounded-2xl"
               />
-              <div className="flex flex-col gap-2">
-                <h2 className="text-3xl font-medium  text-slate-800 ">
-                  Welcome back!
-                </h2>
-                <p className="secondary-text">How are you feeling today?</p>
+            <div className="flex flex-col gap-2">
+              <h2 className="text-3xl font-medium  text-slate-800 ">
+                Welcome back!
+              </h2>
+              <p className="secondary-text">How are you feeling today?</p>
               </div>
             </div>
             <div className="flex items-center gap-3">

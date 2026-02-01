@@ -47,6 +47,42 @@ export function getEventIcon(type: string): string {
   }
 }
 
+// Get timeline event border color
+export function getEventBorderColor(type: string): string {
+  switch (type) {
+    case "symptom":
+      return "border-amber-500"; // Orange/amber for symptoms
+    case "appointment":
+      return "border-blue-500"; // Blue for appointments
+    case "medication":
+      return "border-purple-500"; // Purple for medications
+    case "alert":
+      return "border-red-500"; // Red for alerts
+    case "chat":
+      return "border-primary"; // Green (primary) for chat
+    default:
+      return "border-slate-400"; // Gray for unknown
+  }
+}
+
+// Get timeline event dot color
+export function getEventDotColor(type: string): string {
+  switch (type) {
+    case "symptom":
+      return "bg-amber-500"; // Orange/amber for symptoms
+    case "appointment":
+      return "bg-blue-500"; // Blue for appointments
+    case "medication":
+      return "bg-purple-500"; // Purple for medications
+    case "alert":
+      return "bg-red-500"; // Red for alerts
+    case "chat":
+      return "bg-primary"; // Green (primary) for chat
+    default:
+      return "bg-slate-400"; // Gray for unknown
+  }
+}
+
 // Generate a simple ID
 export function generateId(): string {
   return Math.random().toString(36).substring(2, 9);

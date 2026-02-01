@@ -40,13 +40,13 @@ export function PatientChat() {
           </div>
           <div className="flex items-center gap-3">
             {!callEnded && (
-              <button
-                onClick={async () => {
+            <button
+              onClick={async () => {
                   setCallEnded(true);
-                  if (chatEndCallRef.current) {
-                    await chatEndCallRef.current();
-                  }
-                }}
+                if (chatEndCallRef.current) {
+                  await chatEndCallRef.current();
+                }
+              }}
                 className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-full font-medium hover:from-red-600 hover:to-red-700 transition-all shadow-sm flex items-center gap-2"
               >
                 <svg
@@ -54,7 +54,7 @@ export function PatientChat() {
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
-                >
+            >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -62,8 +62,8 @@ export function PatientChat() {
                     d="M16 8l-8 8m0-8l8 8"
                   />
                 </svg>
-                End Call
-              </button>
+              End Call
+            </button>
             )}
           </div>
         </div>
