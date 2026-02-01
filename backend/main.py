@@ -129,6 +129,7 @@ class DoctorSignUp(BaseModel):
     speciality: str
     name: str
     bio: str
+    address: str | None = None
 
 
 # Basic Routes
@@ -182,12 +183,27 @@ def doctor_sign_up(body: DoctorSignUp):
         clientUid = auth_sign_up(
             email=body.email, password=body.password, role="doctor", full_name=body.name
         )
+        user_id = clientUid if isinstance(clientUid, str) else getattr(clientUid, "id", str(clientUid))
+        # Same as patients: store name, email, address so they propagate to patient page
         return doctors_create(
-            user_id=clientUid, specialty=body.speciality, bio=body.bio
+            user_id=user_id,
+            specialty=body.speciality,
+            bio=body.bio,
+            name=body.name,
+            email=body.email,
+            address=body.address,
         )
-
+    except HTTPException:
+        raise
     except Exception as e:
-        return JSONResponse(status_code=400, content={"msg": f"Error: {e}"})
+        logging.exception("Doctor signup failed after auth")
+        err_msg = str(e).lower()
+        if "already registered" in err_msg or "user already" in err_msg:
+            return JSONResponse(
+                status_code=409,
+                content={"msg": "Email already registered. Sign in or use a different email."},
+            )
+        return JSONResponse(status_code=400, content={"msg": str(e)})
 
 
 # Cohere Chats
