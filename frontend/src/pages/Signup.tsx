@@ -150,10 +150,6 @@ export function RegisterPage() {
             )}
           </button>
           
-          {/* Demo notice */}
-          <p className="text-center text-slate-400 text-sm mt-6">
-            Demo mode - no login required
-          </p>
         </div>
 
         {/* Left side - Logo & Title */}
