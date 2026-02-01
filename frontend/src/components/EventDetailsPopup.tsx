@@ -19,20 +19,28 @@ const processInlineFormatting = (text: string) => {
   let match;
   const boldMatches: Array<{ start: number; end: number; text: string }> = [];
   while ((match = boldRegex.exec(text)) !== null) {
-    boldMatches.push({ start: match.index, end: match.index + match[0].length, text: match[1] });
+    boldMatches.push({
+      start: match.index,
+      end: match.index + match[0].length,
+      text: match[1],
+    });
   }
 
   // Process *italic*
   const italicRegex = /(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g;
   const italicMatches: Array<{ start: number; end: number; text: string }> = [];
   while ((match = italicRegex.exec(text)) !== null) {
-    italicMatches.push({ start: match.index, end: match.index + match[0].length, text: match[1] });
+    italicMatches.push({
+      start: match.index,
+      end: match.index + match[0].length,
+      text: match[1],
+    });
   }
 
   // Combine and sort all matches
   const allMatches = [
-    ...boldMatches.map(m => ({ ...m, type: 'bold' as const })),
-    ...italicMatches.map(m => ({ ...m, type: 'italic' as const }))
+    ...boldMatches.map((m) => ({ ...m, type: "bold" as const })),
+    ...italicMatches.map((m) => ({ ...m, type: "italic" as const })),
   ].sort((a, b) => a.start - b.start);
 
   // Build parts array
@@ -40,7 +48,7 @@ const processInlineFormatting = (text: string) => {
     if (match.start > lastIndex) {
       parts.push(text.substring(lastIndex, match.start));
     }
-    if (match.type === 'bold') {
+    if (match.type === "bold") {
       parts.push(<strong key={key++}>{match.text}</strong>);
     } else {
       parts.push(<em key={key++}>{match.text}</em>);
@@ -56,40 +64,48 @@ const processInlineFormatting = (text: string) => {
 };
 
 const renderMarkdown = (text: string) => {
-  const lines = text.split('\n');
+  const lines = text.split("\n");
   const elements: JSX.Element[] = [];
   let inList = false;
 
   lines.forEach((line, index) => {
     const trimmed = line.trim();
-    
+
     // Headers
-    if (trimmed.startsWith('# ')) {
+    if (trimmed.startsWith("# ")) {
       elements.push(
         <h1 key={index} className="text-2xl font-bold mt-6 mb-3 text-slate-800">
           {trimmed.substring(2)}
-        </h1>
+        </h1>,
       );
       inList = false;
-    } else if (trimmed.startsWith('## ')) {
+    } else if (trimmed.startsWith("## ")) {
       elements.push(
         <h2 key={index} className="text-xl font-bold mt-4 mb-2 text-slate-800">
           {trimmed.substring(3)}
-        </h2>
+        </h2>,
       );
       inList = false;
-    } else if (trimmed.startsWith('### ')) {
+    } else if (trimmed.startsWith("### ")) {
       elements.push(
-        <h3 key={index} className="text-lg font-semibold mt-3 mb-2 text-slate-700">
+        <h3
+          key={index}
+          className="text-lg font-semibold mt-3 mb-2 text-slate-700"
+        >
           {trimmed.substring(4)}
-        </h3>
+        </h3>,
       );
       inList = false;
     }
     // List items
-    else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+    else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
       if (!inList) {
-        elements.push(<ul key={`list-${index}`} className="list-disc list-inside mb-2 space-y-1" />);
+        elements.push(
+          <ul
+            key={`list-${index}`}
+            className="list-disc list-inside mb-2 space-y-1"
+          />,
+        );
         inList = true;
       }
       const content = trimmed.substring(2);
@@ -97,7 +113,7 @@ const renderMarkdown = (text: string) => {
       elements.push(
         <li key={index} className="text-slate-700 ml-4">
           {processed}
-        </li>
+        </li>,
       );
     }
     // Regular paragraphs
@@ -107,7 +123,7 @@ const renderMarkdown = (text: string) => {
       elements.push(
         <p key={index} className="mb-2 text-slate-700">
           {processed}
-        </p>
+        </p>,
       );
     } else {
       inList = false;
@@ -118,7 +134,13 @@ const renderMarkdown = (text: string) => {
   return elements;
 };
 
-export function EventDetailsPopup({ isOpen, event, onClose, onDelete, isDeleting = false }: EventDetailsPopupProps) {
+export function EventDetailsPopup({
+  isOpen,
+  event,
+  onClose,
+  onDelete,
+  isDeleting = false,
+}: EventDetailsPopupProps) {
   if (!isOpen || !event) return null;
 
   const handleDelete = async () => {
@@ -142,17 +164,19 @@ export function EventDetailsPopup({ isOpen, event, onClose, onDelete, isDeleting
   };
 
   return (
-    <div 
-      className="fixed inset-0 flex items-center justify-center z-50" 
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.4)' }}
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50"
+      style={{ backgroundColor: "rgba(0, 0, 0, 0.4)" }}
       onClick={onClose}
     >
-      <div 
+      <div
         className="bg-white rounded-2xl shadow-xl max-w-3xl w-full mx-4 pointer-events-auto flex flex-col max-h-[85vh]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-4 border-b border-slate-200 flex-shrink-0">
-          <h2 className="text-xl font-semibold text-slate-800">Event Details</h2>
+          <h2 className="text-xl font-semibold text-slate-800">
+            Event Details
+          </h2>
         </div>
         <div className="flex-1 overflow-y-auto p-6">
           <div className="space-y-4">
@@ -172,7 +196,9 @@ export function EventDetailsPopup({ isOpen, event, onClose, onDelete, isDeleting
               <label className="block text-sm font-medium text-slate-500 mb-1">
                 Date
               </label>
-              <p className="text-slate-800">{formatDate(event.created_at)}</p>
+              <p className="text-slate-800">
+                {formatDate(new Date(event.created_at))}
+              </p>
             </div>
             {event.details && (
               <div>
@@ -180,7 +206,11 @@ export function EventDetailsPopup({ isOpen, event, onClose, onDelete, isDeleting
                   Details
                 </label>
                 <div className="text-slate-800 prose prose-slate max-w-none">
-                  {renderMarkdown(typeof event.details === 'string' ? event.details : event.details.text || '')}
+                  {renderMarkdown(
+                    typeof event.details === "string"
+                      ? event.details
+                      : event.details.text || "",
+                  )}
                 </div>
               </div>
             )}
