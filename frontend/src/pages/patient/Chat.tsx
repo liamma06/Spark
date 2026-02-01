@@ -24,6 +24,11 @@ export function PatientChat() {
       <header className="bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-8 py-5 flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <img
+              src="/IconGreen.svg"
+              alt="CareBridge AI"
+              className="w-12 h-12 rounded-2xl"
+            />
             <div>
               <h1 className="text-2xl font-medium text-slate-800">
                 Care Companion
