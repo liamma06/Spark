@@ -79,7 +79,7 @@ export function Timeline({ events, loading, patientId, onEventsChange }: Timelin
 
   // Sort by date descending
   const sortedEvents = [...filteredEvents].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
 
   if (loading) {
@@ -236,7 +236,7 @@ export function Timeline({ events, loading, patientId, onEventsChange }: Timelin
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-slate-400 whitespace-nowrap">
-                          {formatDate(event.createdAt)}
+                          {formatDate(event.created_at)}
                         </span>
                         {patientId && (
                           <button

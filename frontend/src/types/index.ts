@@ -45,7 +45,7 @@ export interface TimelineEvent {
   type: TimelineEventType;
   title: string;
   details?: {text: string};
-  createdAt: Date;
+  created_at: Date;
 }
 
 // Alert types

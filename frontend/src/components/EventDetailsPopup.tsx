@@ -177,7 +177,7 @@ export function EventDetailsPopup({ isOpen, event, onClose, onDelete, isDeleting
               <label className="block text-sm font-medium text-slate-500 mb-1">
                 Date
               </label>
-              <p className="text-slate-800">{formatDate(event.createdAt)}</p>
+              <p className="text-slate-800">{formatDate(event.created_at)}</p>
             </div>
           </div>
           <div className="flex gap-3 mt-6">

@@ -65,7 +65,7 @@ function Timeline2(props: Timeline2Props) {
   };
   const sortedEvents = () => {
     return props.events.sort((a, b) => {
-      return a.createdAt.getTime() > b.createdAt.getTime() ? 1 : -1;
+      return a.created_at.getTime() > b.created_at.getTime() ? 1 : -1;
     });
   };
   return (
@@ -89,7 +89,7 @@ function Timeline2(props: Timeline2Props) {
               <TimelineNode
                 key={index + event.title}
                 type={event.type}
-                date={event.createdAt}
+                date={event.created_at}
               >
                 <div
                   className={`ml-[0.325em] border-l-2 border-b-2 ${event.type == "medication" ? "border-red-500" : "border-primary"} pt-10 p-3 rounded-bl-2xl mr-10 mt-3`}
@@ -162,6 +162,7 @@ function TimelineNode(props: TimelineNodeProps) {
       day: "numeric",
       year: "numeric",
     };
+    if (date == undefined) return "Bad JSON boy";
     return date.toLocaleDateString("en-US", options);
   };
   return (
