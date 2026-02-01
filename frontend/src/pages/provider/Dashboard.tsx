@@ -1,15 +1,19 @@
-import { Link, useNavigate } from "react-router-dom";
-import { usePatients, useAlerts } from "../../hooks/usePatients";
+import { useNavigate } from "react-router-dom";
+import { useAlerts } from "../../hooks/usePatients";
 import { PatientCard } from "../../components/PatientCard";
 import { AlertCard } from "../../components/AlertCard";
 import { StatCard } from "../../components/StatCard";
 import AccentButton from "../../components/AccentButton";
-import { dummyPatients } from "../../types/dummyPatients";
 import { signOut } from "../../lib/auth";
+import { usePatients } from "../../lib/getPatients";
+import { AddPatientModal } from "../../components/AddPatientModal";
+import { useState } from "react";
+import { addPatient } from "../../lib/addPatient";
 
 export function ProviderDashboard() {
   const navigate = useNavigate();
-  const { patients, loading: patientsLoading } = usePatients();
+  const patients = usePatients();
+  const [addPatients, setAddPatients] = useState(false);
   const { alerts, loading: alertsLoading, acknowledgeAlert } = useAlerts();
 
   const unacknowledgedAlerts = alerts.filter((a) => !a.acknowledged);
@@ -38,6 +42,23 @@ export function ProviderDashboard() {
             </div>
             <div className="flex items-center gap-3">
               <AccentButton
+                onClick={() => {
+                  setAddPatients(true);
+                }}
+                icon={
+                  <svg
+                    className="w-4 h-4 text-slate-800"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                  </svg>
+                }
+              >
+                Add Patient
+              </AccentButton>
+
+              <AccentButton
                 isGreen
                 onClick={handleSignOut}
                 icon={
@@ -59,7 +80,7 @@ export function ProviderDashboard() {
           <div className="grid grid-cols-3 gap-4 mb-8">
             <StatCard
               title="Total Patients"
-              stat={patients.length}
+              stat={patients.patients.length}
               badgeStat="5"
               badgeDetails="More Patients This Month"
               statColor="text-slate-800"
@@ -122,13 +143,32 @@ export function ProviderDashboard() {
       <div className="flex flex-col h-[95vh]">
         <div className="mb-8 h-full bg-linear-to-br from-green-gradient-dark to-green-gradient-light rounded-2xl p-6 text-white overflow-y-scroll no-scrollbar">
           <div className="text-lg font-medium">Patient List</div>
-          <div className="flex flex-col w-full gap-1 items-start justify-between mb-6 overflow-y-scroll mt-4">
-            {dummyPatients.map((patient, index) => (
-              <PatientCard key={index} patient={patient} />
-            ))}
-          </div>
+
+          {patients.loading ? (
+            <div className="flex flex-col w-full gap-3 mt-4 ">
+              <div className="h-16 bg-white/20 rounded-lg" />
+              <div className="h-16 bg-white/20 rounded-lg" />
+              <div className="h-16 bg-white/20 rounded-lg" />
+              <div className="h-16 bg-white/20 rounded-lg" />
+            </div>
+          ) : (
+            <div className="flex flex-col w-full gap-1 items-start justify-between mb-6 overflow-y-scroll mt-4">
+              {patients.patients.map((patient, index) => (
+                <PatientCard key={index} patient={patient} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
+      <AddPatientModal
+        isOpen={addPatients}
+        onClose={() => {
+          setAddPatients(false);
+        }}
+        onAddPatient={(pat) => {
+          addPatient(pat);
+        }}
+      ></AddPatientModal>
     </div>
   );
 }
