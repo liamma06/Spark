@@ -8,6 +8,109 @@ interface EventDetailsPopupProps {
   isDeleting?: boolean;
 }
 
+// Markdown rendering functions (reused from SummaryPopup)
+const processInlineFormatting = (text: string) => {
+  const parts: (string | JSX.Element)[] = [];
+  let lastIndex = 0;
+  let key = 0;
+
+  // Process **bold**
+  const boldRegex = /\*\*(.*?)\*\*/g;
+  let match;
+  const boldMatches: Array<{ start: number; end: number; text: string }> = [];
+  while ((match = boldRegex.exec(text)) !== null) {
+    boldMatches.push({ start: match.index, end: match.index + match[0].length, text: match[1] });
+  }
+
+  // Process *italic*
+  const italicRegex = /(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g;
+  const italicMatches: Array<{ start: number; end: number; text: string }> = [];
+  while ((match = italicRegex.exec(text)) !== null) {
+    italicMatches.push({ start: match.index, end: match.index + match[0].length, text: match[1] });
+  }
+
+  // Combine and sort all matches
+  const allMatches = [
+    ...boldMatches.map(m => ({ ...m, type: 'bold' as const })),
+    ...italicMatches.map(m => ({ ...m, type: 'italic' as const }))
+  ].sort((a, b) => a.start - b.start);
+
+  // Build parts array
+  allMatches.forEach((match) => {
+    if (match.start > lastIndex) {
+      parts.push(text.substring(lastIndex, match.start));
+    }
+    if (match.type === 'bold') {
+      parts.push(<strong key={key++}>{match.text}</strong>);
+    } else {
+      parts.push(<em key={key++}>{match.text}</em>);
+    }
+    lastIndex = match.end;
+  });
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+};
+
+const renderMarkdown = (text: string) => {
+  const lines = text.split('\n');
+  const elements: JSX.Element[] = [];
+  let inList = false;
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+    
+    // Headers
+    if (trimmed.startsWith('## ')) {
+      elements.push(
+        <h2 key={index} className="text-xl font-bold mt-4 mb-2 text-slate-800">
+          {trimmed.substring(3)}
+        </h2>
+      );
+      inList = false;
+    } else if (trimmed.startsWith('### ')) {
+      elements.push(
+        <h3 key={index} className="text-lg font-semibold mt-3 mb-2 text-slate-700">
+          {trimmed.substring(4)}
+        </h3>
+      );
+      inList = false;
+    }
+    // List items
+    else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      if (!inList) {
+        elements.push(<ul key={`list-${index}`} className="list-disc list-inside mb-2 space-y-1" />);
+        inList = true;
+      }
+      const content = trimmed.substring(2);
+      const processed = processInlineFormatting(content);
+      elements.push(
+        <li key={index} className="text-slate-700 ml-4">
+          {processed}
+        </li>
+      );
+    }
+    // Regular paragraphs
+    else if (trimmed) {
+      inList = false;
+      const processed = processInlineFormatting(trimmed);
+      elements.push(
+        <p key={index} className="mb-2 text-slate-700">
+          {processed}
+        </p>
+      );
+    } else {
+      inList = false;
+      elements.push(<br key={index} />);
+    }
+  });
+
+  return elements;
+};
+
 export function EventDetailsPopup({ isOpen, event, onClose, onDelete, isDeleting = false }: EventDetailsPopupProps) {
   if (!isOpen || !event) return null;
 
@@ -65,7 +168,9 @@ export function EventDetailsPopup({ isOpen, event, onClose, onDelete, isDeleting
                 <label className="block text-sm font-medium text-slate-500 mb-1">
                   Details
                 </label>
-                <p className="text-slate-800 whitespace-pre-wrap">{event.details}</p>
+                <div className="text-slate-800 prose prose-slate max-w-none">
+                  {renderMarkdown(event.details)}
+                </div>
               </div>
             )}
             <div>

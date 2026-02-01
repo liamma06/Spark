@@ -1,36 +1,9 @@
 import logging
 import os
+import asyncio
 from datetime import datetime
 from typing import Optional
-
-from app.alerts import acknowledge_alert as alerts_acknowledge_alert
-from app.alerts import create_alert as alerts_create_alert
-from app.alerts import get_alerts as alerts_get_alerts
-from app.cohere_chat import (
-    assess_risk,
-    generate_summary,
-    get_system_prompt,
-    stream_chat,
-)
-from app.doctors import connect_patient_doctor as doctors_connect
-from app.doctors import create_doctor as doctors_create
-from app.doctors import disconnect_patient_doctor as doctors_disconnect
-from app.doctors import get_my_patients as doctors_get_my_patients
-from app.doctors import get_patient_doctors as doctors_get_patient_doctors
-from app.patients import create_patient as patients_create
-from app.patients import get_patient as patients_get_patient
-from app.patients import get_patients as patients_get_patients
-from app.patients import search_patients_by_name as patients_search_by_name
-from app.supabase import get_current_user as auth_get_current_user
-from app.supabase import sign_in as auth_sign_in
-from app.supabase import sign_out as auth_sign_out
-from app.supabase import sign_up as auth_sign_up
-from app.timeline import add_event as timeline_add_event
-from app.timeline import delete_event as timeline_delete_event
-from app.timeline import get_timeline as timeline_get_timeline
-from app.tts import handle_tts_request
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
@@ -41,7 +14,7 @@ from app.supabase import (
     sign_out as auth_sign_out,
     get_current_user as auth_get_current_user,
 )
-from app.cohere_chat import get_system_prompt, assess_risk, stream_chat, generate_summary
+from app.cohere_chat import get_system_prompt, assess_risk, stream_chat, generate_summary, extract_timeline_events
 from app.tts import handle_tts_request
 from app.doctors import (
     create_doctor as doctors_create,
@@ -55,6 +28,7 @@ from app.patients import (
     get_patient as patients_get_patient,
     search_patients_by_name as patients_search_by_name,
     create_patient as patients_create,
+    resolve_patient_id as patients_resolve_patient_id,
     update_patient_risk as patients_update_risk,
 )
 from app.alerts import (
@@ -71,6 +45,11 @@ from app.timeline import (
 
 # Load environment variables
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
 
 app = FastAPI(title="CareBridge API")
 
@@ -270,53 +249,79 @@ def end_call(request: ChatRequest):
 
         logging.error(f"Failed to generate summary: {e}")
         summary = "**Summary**: Unable to generate conversation summary."
-
-    return {"closingMessage": closing_message, "summary": summary}
+    
+    # Add summary as a timeline event if patientId is provided
+    if request.patientId:
+        try:
+            # Resolve patient ID (user_id to patient UUID if needed)
+            resolved_patient_id = None
+            try:
+                patient = patients_get_patient(request.patientId)
+                resolved_patient_id = patient.get("id")
+            except HTTPException:
+                # If patient lookup fails, try to resolve it
+                resolved_patient_id = patients_resolve_patient_id(request.patientId)
+            
+            if resolved_patient_id:
+                # Create timeline event with the summary
+                timeline_add_event(
+                    resolved_patient_id,
+                    "chat",
+                    "AI Conversation Summary",
+                    summary
+                )
+                logging.info(f"Created timeline event for conversation summary for patient: {resolved_patient_id}")
+            else:
+                logging.warning(f"Could not resolve patient ID for summary timeline event: {request.patientId}")
+        except Exception as e:
+            logging.error(f"Failed to create summary timeline event: {e}", exc_info=True)
+    
+    return {
+        "closingMessage": closing_message,
+        "summary": summary
+    }
 
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
     """Stream chat responses from Cohere (app.cohere_chat)."""
     system_prompt = get_system_prompt()
+    resolved_patient_id = None
     if request.patientId:
         try:
             patient = patients_get_patient(request.patientId)
             conds = patient.get("conditions") or []
             conditions = ", ".join(conds) if conds else "None reported"
             system_prompt += f"\n\nPatient context: {patient['name']}, {patient['age']} years old. Known conditions: {conditions}."
+            resolved_patient_id = patient.get("id")
         except HTTPException:
             pass
     messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
     last_message = request.messages[-1].content if request.messages else ""
 
     async def generate():
+        import logging
+        nonlocal resolved_patient_id
+        logging.info(f"Chat request received. patientId: {request.patientId}, message count: {len(request.messages)}")
         try:
             for chunk in stream_chat(messages, system_prompt):
                 yield chunk
+            logging.info(f"Streaming completed. patientId: {request.patientId}")
+            
+            # Schedule post-stream processing asynchronously (don't block response)
             if request.patientId:
-                risk_level = assess_risk(last_message)
-                if risk_level == "high":
-                    try:
-                        alerts_create_alert(
-                            request.patientId,
-                            "critical",
-                            f'High-risk symptoms reported: "{last_message[:50]}..."',
-                            "Keywords indicating potentially serious symptoms were detected.",
-                        )
-                        patients_update_risk(request.patientId, "high")
-                    except HTTPException:
-                        pass
-                details = (
-                    last_message[:100] + "..."
-                    if len(last_message) > 100
-                    else last_message
-                )
-                try:
-                    timeline_add_event(
-                        request.patientId, "chat", "AI conversation", details
-                    )
-                except HTTPException:
-                    pass
+                logging.info(f"Scheduling post-stream actions for patientId: {request.patientId}")
+                # Resolve patient ID before scheduling background task
+                if not resolved_patient_id:
+                    resolved_patient_id = patients_resolve_patient_id(request.patientId)
+                
+                # Schedule background task for timeline extraction and risk assessment
+                asyncio.create_task(process_post_stream_actions_async(
+                    request.patientId,
+                    resolved_patient_id,
+                    last_message,
+                    messages
+                ))
         except Exception as e:
             import traceback
 
@@ -325,6 +330,67 @@ async def chat(request: ChatRequest):
 
     return StreamingResponse(generate(), media_type="text/plain")
 
+
+async def process_post_stream_actions_async(
+    patient_id: str,
+    resolved_patient_id: str | None,
+    last_message: str,
+    messages: list[dict]
+):
+    """Process risk assessment and timeline extraction asynchronously in the background."""
+    import logging
+    
+    try:
+        if not resolved_patient_id:
+            logging.warning(f"No patient found for timeline events. patientId: {patient_id}")
+            return
+        
+        # Risk assessment
+        risk_level = assess_risk(last_message)
+        if risk_level == "high":
+            try:
+                alerts_create_alert(
+                    patient_id,
+                    "critical",
+                    f"High-risk symptoms reported: \"{last_message[:50]}...\"",
+                    "Keywords indicating potentially serious symptoms were detected.",
+                )
+                patients_update_risk(patient_id, "high")
+            except HTTPException:
+                pass
+        
+        # Extract and create timeline events from the conversation
+        logging.info(f"Attempting to extract timeline events from message: {last_message[:100]}")
+        try:
+            extracted_events = extract_timeline_events(last_message, messages)
+            logging.info(f"Extracted {len(extracted_events)} timeline events: {extracted_events}")
+            for event in extracted_events:
+                try:
+                    # Double-check: only allow symptom, appointment, or medication types
+                    event_type = event.get("type")
+                    if event_type not in ["symptom", "appointment", "medication"]:
+                        logging.warning(f"Skipping invalid event type '{event_type}'. Only symptom, appointment, and medication are allowed.")
+                        continue
+                    
+                    # Convert date string to proper format for timeline_add_event
+                    date_str = event.get("date")
+                    logging.info(f"Creating timeline event: type={event_type}, title={event.get('title')}, date={date_str}")
+                    timeline_add_event(
+                        resolved_patient_id,
+                        event_type,
+                        event["title"],
+                        event.get("details", ""),
+                        date_str  # This will be passed as created_at parameter
+                    )
+                    logging.info(f"Successfully created timeline event: {event.get('title')}")
+                except HTTPException as he:
+                    logging.error(f"HTTPException creating timeline event: {he.detail}")
+                except Exception as e:
+                    logging.error(f"Failed to create timeline event: {type(e).__name__}: {e}", exc_info=True)
+        except Exception as e:
+            logging.error(f"Failed to extract timeline events: {type(e).__name__}: {e}", exc_info=True)
+    except Exception as e:
+        logging.error(f"Error in post-stream processing: {e}", exc_info=True)
 
 # --- TTS (app.tts / ElevenLabs) ---
 
@@ -376,6 +442,7 @@ class TimelineEventCreate(BaseModel):
     type: str
     title: str
     details: Optional[str] = None
+    created_at: Optional[str] = Field(None, alias="createdAt")
 
     class Config:
         populate_by_name = True
@@ -390,7 +457,7 @@ def get_timeline(patientId: Optional[str] = None):
 @app.post("/api/timeline")
 def create_timeline_event(body: TimelineEventCreate):
     """Create a new timeline event."""
-    return timeline_add_event(body.patient_id, body.type, body.title, body.details)
+    return timeline_add_event(body.patient_id, body.type, body.title, body.details, body.created_at)
 
 
 @app.delete("/api/timeline/{event_id}")

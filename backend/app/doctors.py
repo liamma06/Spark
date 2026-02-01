@@ -68,14 +68,25 @@ def get_my_patients(doctor_user_id: str) -> list:
 def get_patient_doctors(patient_user_id: str) -> list:
     """
     List all doctors connected to this patient. patient_doctors stores user_ids.
+    Returns enriched doctor data using get_doctor_by_user_id for each.
     """
     try:
         links = supabase.table("patient_doctors").select("doctor_id").eq("patient_id", patient_user_id).execute()
         if not links.data:
             return []
         doctor_user_ids = [r["doctor_id"] for r in links.data]
-        res = supabase.table("doctors").select("*").in_("user_id", doctor_user_ids).execute()
-        return res.data or []
+        
+        # Get full doctor details for each
+        doctors = []
+        for doctor_id in doctor_user_ids:
+            try:
+                doctor = get_doctor_by_user_id(doctor_id)
+                doctors.append(doctor)
+            except HTTPException:
+                # Skip doctors that aren't found
+                continue
+        
+        return doctors
     except HTTPException:
         raise
     except Exception as e:
