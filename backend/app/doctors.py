@@ -9,17 +9,40 @@ from fastapi import HTTPException
 from app.supabase import supabase
 
 
-def create_doctor(user_id: str, bio: str, specialty: str | None = None) -> dict:
+def create_doctor(
+    user_id: str,
+    bio: str,
+    specialty: str | None = None,
+    name: str | None = None,
+    email: str | None = None,
+    address: str | None = None,
+) -> dict:
     """
-    Create a doctor row in public.doctors (user_id = auth user id, specialty optional).
+    Create a doctor row in public.doctors (same pattern as patients: name, address, email).
     Returns the created doctor row. Raises HTTPException on duplicate user_id or Supabase error.
     """
     try:
-        res = supabase.table("doctors").insert({
+        payload = {
             "user_id": user_id,
             "specialty": specialty or None,
-            "bio": bio
-        }).execute()
+            "bio": bio or None,
+        }
+        if name is not None and name != "":
+            payload["name"] = name
+        if email is not None and email != "":
+            payload["email"] = email
+        if address is not None and address != "":
+            payload["address"] = address
+        try:
+            res = supabase.table("doctors").insert(payload).execute()
+        except Exception as insert_err:
+            err_str = str(insert_err).lower()
+            # If table doesn't have name/email/address columns yet, insert minimal row so signup succeeds
+            if "column" in err_str and ("does not exist" in err_str or "unknown" in err_str):
+                payload = {"user_id": user_id, "specialty": specialty or None, "bio": bio or None}
+                res = supabase.table("doctors").insert(payload).execute()
+            else:
+                raise insert_err
         if not res.data or len(res.data) == 0:
             raise HTTPException(status_code=500, detail="Failed to create doctor")
         return res.data[0]
@@ -51,14 +74,23 @@ def get_profile_by_user_id(user_id: str) -> dict:
 
 def get_doctor_by_user_id(user_id: str) -> dict:
     """
-    Get one doctor by Supabase user_id (profiles.id / auth.users.id).
-    Raises HTTPException 404 if not found, 500 on Supabase error.
+    Get one doctor by Supabase user_id. Merges in name, email, address from profile
+    when missing from doctors row (so patient page gets same shape as patients on provider page).
     """
     try:
         res = supabase.table("doctors").select("*").eq("user_id", user_id).execute()
         if not res.data or len(res.data) == 0:
             raise HTTPException(status_code=404, detail="Doctor not found")
-        return res.data[0]
+        doctor = dict(res.data[0])
+        # Propagate name, email, address from profile if missing (like patients table)
+        try:
+            profile = get_profile_by_user_id(user_id)
+            doctor["name"] = doctor.get("name") or profile.get("full_name") or profile.get("name")
+            doctor["email"] = doctor.get("email") or profile.get("email")
+            doctor["address"] = doctor.get("address") or profile.get("address")
+        except HTTPException:
+            pass
+        return doctor
     except HTTPException:
         raise
     except Exception as e:
