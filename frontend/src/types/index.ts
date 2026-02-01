@@ -14,6 +14,7 @@ export interface Provider {
   address: string;
   specialty: string;
   bio: string;
+  email: string;
 }
 
 // Chat types
