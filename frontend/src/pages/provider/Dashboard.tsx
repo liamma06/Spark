@@ -40,12 +40,10 @@ export function ProviderDashboard() {
     setSelectedPatient(patient);
     const timeline = getTimeline(patient.user_id)
       .then((res) => {
-          console.log(res);
         if (!res.sucess){
           setSelectedTimeline(res.timeline_events!);
         }
         else{
-          console.log("lol!!!");
         }
       })
     
@@ -69,13 +67,13 @@ export function ProviderDashboard() {
   };
 
   return (
-    <div className="grid grid-cols-[3fr_1fr] p-8 gap-3 bg-bg">
+    <div className="grid grid-cols-[5fr_0.7fr] p-8 gap-3 bg-bg">
       <div className="min-h-screen flex flex-col gap-6">
         {/* Main */}
-        <div className="bg-bg mx-auto px-6 py-8 flex flex-col gap-3">
+        <div className="bg-bg px-6 py-8 flex flex-col gap-3">
           <div className="flex items-center justify-between pb-1">
             <div className="flex flex-col gap-2">
-              <h2 className="text-3xl font-medium  text-slate-800 ">
+              <h2 className="text-3xl font-medium  text-slate-800 text-left">
                 Welcome back!
               </h2>
               <p className="secondary-text">
@@ -83,38 +81,7 @@ export function ProviderDashboard() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <AccentButton
-                onClick={() => {
-                  setAddPatients(true);
-                }}
-                icon={
-                  <svg
-                    className="w-4 h-4 text-slate-800"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                  </svg>
-                }
-              >
-                Add Patient
-              </AccentButton>
-
-              <AccentButton
-                isGreen
-                onClick={handleSignOut}
-                icon={
-                  <svg
-                    className="w-4 h-4 text-white"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z" />
-                  </svg>
-                }
-              >
-                Sign Out
-              </AccentButton>
+              
             </div>
           </div>
         </div>
@@ -122,24 +89,24 @@ export function ProviderDashboard() {
         {/* Patient Stats Section */}
         { <div className="bg-white rounded-2xl p-6 shadow-sm">
           <h3 className="text-xl font-medium text-slate-800 mb-4">
-            {selectedPatient?.name ?? ""} - Patient Details
+            { selectedPatient?.name  ?? "No Patient Selected"}
           </h3>
           <div className="grid grid-cols-6 gap-4 mb-6">
-            <div className="bg-gradient-to-br bg-slate-200  rounded-lg p-4">
-              <p className="text-sm text-slate-600 mb-1">Age</p>
+            <div className="bg-gradient-to-br bg-slate-200 rounded-lg p-4 h-32 flex flex-col justify-between">
+              <p className="text-md text-slate-600">Age</p>
               <p className="text-2xl font-bold text-slate-800">
                 {selectedPatient?.age}
               </p>
             </div>
-            <div className="bg-gradient-to-br bg-slate-200 rounded-lg p-4 col-span-2">
-              <p className="text-sm text-slate-600 mb-1">Address</p>
-              <p className="text-sm font-semibold text-slate-800">
+            <div className="bg-gradient-to-br bg-slate-200 rounded-lg p-4 col-span-2 h-32 flex flex-col justify-between">
+              <p className="text-md text-slate-600">Address</p>
+              <p className="text-sm font-semibold text-slate-800 line-clamp-2">
                 {selectedPatient?.address}
               </p>
             </div>
-            <div className="bg-gradient-to-br bg-slate-200  rounded-lg p-4 col-span-3">
-              <p className="text-sm text-slate-600 mb-1">Conditions</p>
-              <p className="text-sm font-semibold text-slate-800 gap-2 space-x-2">
+            <div className="bg-gradient-to-br bg-slate-200 rounded-lg p-4 col-span-3 h-32 flex flex-col justify-between overflow-hidden">
+              <p className="text-md text-slate-600">Conditions</p>
+              <div className="flex flex-wrap gap-2 overflow-y-auto scrollbar-hide">
                 {selectedPatient?.conditions.map((condition, i) => (
                   <span
                     key={i}
@@ -148,7 +115,7 @@ export function ProviderDashboard() {
                     {condition}
                   </span>
                 ))}
-              </p>
+              </div>
             </div>
           </div>
         </div>}
@@ -157,23 +124,73 @@ export function ProviderDashboard() {
         <Timeline2 events={patientTimeline}/>
       </div>
       <div className="flex flex-col h-[95vh]">
-        <div className="mb-8 h-full bg-linear-to-br from-green-gradient-dark to-green-gradient-light rounded-2xl p-6 text-white overflow-y-scroll no-scrollbar">
-          <div className="text-lg font-medium">Patient List</div>
+        <div className="mb-8 h-full bg-linear-to-br from-green-gradient-dark to-green-gradient-light rounded-2xl p-6 text-white overflow-hidden flex flex-col">
+          {/* Header */}
+          <div className="text-lg font-medium mb-4">Patient List</div>
 
-          {patients.loading ? (
-            <div className="flex flex-col w-full gap-3 mt-4 ">
-              <div className="h-16 bg-white/20 rounded-lg" />
-              <div className="h-16 bg-white/20 rounded-lg" />
-              <div className="h-16 bg-white/20 rounded-lg" />
-              <div className="h-16 bg-white/20 rounded-lg" />
+          {/* Patient List */}
+          <div className="flex-1 overflow-y-auto no-scrollbar">
+            {patients.loading ? (
+              <div className="flex flex-col w-full gap-3">
+                <div className="h-16 bg-white/20 rounded-lg" />
+                <div className="h-16 bg-white/20 rounded-lg" />
+                <div className="h-16 bg-white/20 rounded-lg" />
+                <div className="h-16 bg-white/20 rounded-lg" />
+              </div>
+            ) : (
+              <div className="flex flex-col w-full gap-2">
+                {patients.patients.map((patient, index) => (
+                  <PatientCard
+                    key={index}
+                    patient={patient}
+                    onClick={() => handleSelectPatient(patient)}
+                    selected={selectedPatient?.id === patient.id}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Logo and Buttons at bottom */}
+          <div className="mt-6 pt-6 border-t border-white/20 flex flex-col items-center gap-3">
+
+            {/* Buttons Container */}
+            <div className="flex flex-col gap-2 w-full">
+              {/* Add Patient Button */}
+              <button
+                onClick={() => setAddPatients(true)}
+                className="w-full bg-white/20 hover:bg-white/30 p-3 rounded-xl transition-all duration-300 font-semibold text-white shadow-md hover:shadow-lg active:scale-95 overflow-hidden flex items-center justify-center gap-2"
+              >
+                <svg
+                  className="w-5 h-5 flex-shrink-0"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                </svg>
+                <span className="whitespace-nowrap">
+                  Add Patient
+                </span>
+              </button>
+
+              {/* Sign Out Button */}
+              <button
+                onClick={handleSignOut}
+                className="w-full bg-red-500/50 hover:bg-red-500/60 p-3 rounded-xl transition-all duration-300 font-semibold text-white shadow-md hover:shadow-lg active:scale-95 overflow-hidden flex items-center justify-center gap-2"
+              >
+                <svg
+                  className="w-5 h-5 flex-shrink-0"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z" />
+                </svg>
+                <span className="whitespace-nowrap">
+                  Sign Out
+                </span>
+              </button>
             </div>
-          ) : (
-            <div className="flex flex-col w-full gap-1 items-start justify-between mb-6 overflow-y-scroll mt-4">
-              {patients.patients.map((patient, index) => (
-                <PatientCard key={index} patient={patient} onClick={() => handleSelectPatient(patient)} />
-              ))}
-            </div>
-          )}
+          </div>
         </div>
       </div>
       <AddPatientModal

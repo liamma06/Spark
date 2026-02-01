@@ -75,8 +75,8 @@ export function RegisterPage() {
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center p-6">
       {/* Card */}
-      <div className="bg-white rounded-2xl shadow-lg flex max-w-2xl w-full overflow-hidden h-150">
-        {/* Left side - Form */}
+      <div className="bg-white rounded-2xl shadow-lg flex max-w-2xl w-full overflow-hidden h-150 flex-row-reverse">
+        {/* Right side - Form */}
         <div className="flex-1 p-8 flex flex-col justify-center">
           <h1 className="font-medium text-[1.7em] pb-5">
             {role == "patient" ? "Patient" : "Provider"} Registration
@@ -156,14 +156,13 @@ export function RegisterPage() {
           </p>
         </div>
 
-        {/* Right side - Logo & Title */}
+        {/* Left side - Logo & Title */}
         <div className="flex-1 bg-gradient-to-br from-green-gradient-dark to-green-gradient-light flex flex-col items-center justify-center p-8">
-          <div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl mb-4 shadow-lg"
-            style={{ backgroundColor: "#3F7B56" }}
-          >
-            🏥
-          </div>
+          <img
+            src="/Logo.png"
+            alt="CareBridge AI"
+            className="w-20 h-20 mb-4 rounded-2xl"
+          />
           <h1 className="text-3xl font-bold text-slate-100 text-center">CareBridge AI</h1>
           <p className="font-light text-slate-200 mt-4 text-center max-w-xs">
             Your AI-powered healthcare companion
