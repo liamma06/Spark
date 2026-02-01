@@ -10,7 +10,9 @@ import { AddPatientModal } from "../../components/AddPatientModal";
 import { useState } from "react";
 import { addPatient } from "../../lib/addPatient";
 import { dummyTimelineEvents } from "../../types/dummyTimeline";
-import type{ Patient } from "../../types";
+import type{ Patient, TimelineEvent } from "../../types";
+import { getTimeline } from "../../lib/getTimeline";
+import Timeline2 from "../../components/Timeline2";
 
 export function ProviderDashboard() {
   const navigate = useNavigate();
@@ -18,6 +20,8 @@ export function ProviderDashboard() {
   const [addPatients, setAddPatients] = useState(false);
   const { alerts, loading: alertsLoading, acknowledgeAlert } = useAlerts();
   const [selectedPatient, setSelectedPatient] = useState<Patient | null> (null);
+  const [patientTimeline, setSelectedTimeline] = useState<TimelineEvent[]> ([]);
+
 
 
   const unacknowledgedAlerts = alerts.filter((a) => !a.acknowledged);
@@ -25,13 +29,26 @@ export function ProviderDashboard() {
     (a) => a.severity === "critical",
   );
 
-  const patientTimeline = selectedPatient
-    ? dummyTimelineEvents.filter((e) => e.patientId === selectedPatient.id)
-    : [];
 
   const handleSignOut = () => {
     signOut();
     navigate("/");
+  };
+
+
+  const handleSelectPatient = (patient: Patient) => {
+    setSelectedPatient(patient);
+    const timeline = getTimeline(patient.user_id)
+      .then((res) => {
+          console.log(res);
+        if (!res.sucess){
+          setSelectedTimeline(res.timeline_events!);
+        }
+        else{
+          console.log("lol!!!");
+        }
+      })
+    
   };
 
   const getTypeIcon = (type: string) => {
@@ -137,42 +154,7 @@ export function ProviderDashboard() {
         </div>}
 
         {/* Timeline Section */}
-        {(patientTimeline != null)? <div className="bg-white rounded-2xl p-6 shadow-sm flex-1">
-          <h3 className="text-xl font-medium text-slate-800 mb-4">
-            Patient Timeline
-          </h3>
-          <div className="space-y-4 overflow-y-auto max-h-96 pr-4">
-            {patientTimeline.length > 0 ? (
-              patientTimeline.map((event, index) => (
-                <div key={event.id} className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-lg">
-                      {getTypeIcon(event.type)}
-                    </div>
-                    {index < patientTimeline.length - 1 && (
-                      <div className="w-1 h-12 bg-slate-200 mt-2"></div>
-                    )}
-                  </div>
-                  <div className="pb-4 flex-1">
-                    <p className="font-medium text-slate-800">{event.title}</p>
-                    {event.details && (
-                      <p className="text-sm text-slate-600 mt-1">
-                        {event.details}
-                      </p>
-                    )}
-                    <p className="text-xs text-slate-400 mt-2">
-                      {new Date(event.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-slate-400 text-center py-8">
-                No timeline events yet
-              </p>
-            )}
-          </div>
-        </div>: null}
+        <Timeline2 events={patientTimeline}/>
       </div>
       <div className="flex flex-col h-[95vh]">
         <div className="mb-8 h-full bg-linear-to-br from-green-gradient-dark to-green-gradient-light rounded-2xl p-6 text-white overflow-y-scroll no-scrollbar">
@@ -188,7 +170,7 @@ export function ProviderDashboard() {
           ) : (
             <div className="flex flex-col w-full gap-1 items-start justify-between mb-6 overflow-y-scroll mt-4">
               {patients.patients.map((patient, index) => (
-                <PatientCard key={index} patient={patient} />
+                <PatientCard key={index} patient={patient} onClick={() => handleSelectPatient(patient)} />
               ))}
             </div>
           )}
