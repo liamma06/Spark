@@ -24,8 +24,8 @@ export const useAppStore = create<AppState>((set) => ({
   role: 'patient',
   setRole: (role) => set({ role }),
   
-  // Demo patient ID
-  currentPatientId: 'patient-maria',
+  // Current patient ID (null until set from actual patient data)
+  currentPatientId: null,
   setCurrentPatientId: (currentPatientId) => set({ currentPatientId }),
   
   patients: [],

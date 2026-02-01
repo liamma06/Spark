@@ -1,10 +1,67 @@
+import { useState } from "react";
 import type { TimelineEvent, TimelineEventType } from "../types";
 import AccentButton from "./AccentButton";
+import { timelineApi } from "../lib/api";
+import { AddEventPopup } from "./AddEventPopup";
+import { EventDetailsPopup } from "./EventDetailsPopup";
 
 interface Timeline2Props {
   events: TimelineEvent[];
+  patientId?: string;
+  onEventsChange?: () => void;
 }
 function Timeline2(props: Timeline2Props) {
+  const [showAddPopup, setShowAddPopup] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
+  const [showDetailsPopup, setShowDetailsPopup] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleAddEvent = async (type: TimelineEventType, title: string, details?: string) => {
+    if (!props.patientId) {
+      alert("User ID is required. Please sign in to add events.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await timelineApi.create(
+        props.patientId,
+        type,
+        title,
+        details
+      );
+      setShowAddPopup(false);
+      if (props.onEventsChange) {
+        props.onEventsChange();
+      }
+    } catch (error) {
+      console.error("Failed to create event:", error);
+      alert("Failed to create event. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId: string) => {
+    setIsDeleting(true);
+    try {
+      await timelineApi.delete(eventId);
+      if (props.onEventsChange) {
+        props.onEventsChange();
+      }
+    } catch (error) {
+      console.error("Failed to delete event:", error);
+      alert("Failed to delete event. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleEventClick = (event: TimelineEvent) => {
+    setSelectedEvent(event);
+    setShowDetailsPopup(true);
+  };
   const sortedEvents = () => {
     return props.events.sort((a, b) => {
       return a.createdAt.getTime() > b.createdAt.getTime() ? 1 : -1;
@@ -36,8 +93,15 @@ function Timeline2(props: Timeline2Props) {
                 <div
                   className={`ml-[0.325em] border-l-2 border-b-2 ${event.type == "medication" ? "border-red-500" : "border-primary"} pt-10 p-3 rounded-bl-2xl mr-10 mt-3`}
                 >
-                  <div className="text-sm font-medium pb-1">{event.title}</div>
-                  <div className="text-xs">{event.details}</div>
+                  <button
+                    onClick={() => handleEventClick(event)}
+                    className="text-sm font-medium pb-1 hover:underline cursor-pointer text-left w-full"
+                  >
+                    {event.title}
+                  </button>
+                  {event.details && (
+                    <div className="text-xs text-slate-600 mt-1 line-clamp-2">{event.details}</div>
+                  )}
                 </div>
               </TimelineNode>
             );
@@ -45,6 +109,7 @@ function Timeline2(props: Timeline2Props) {
           <TimelineNode noTail date={new Date()} type={"medication"}>
             <div className="pt-4 h-full flex flex-col justify-center w-fit">
               <AccentButton
+                onClick={() => setShowAddPopup(true)}
                 icon={
                   <svg
                     className="w-4 h-4"
@@ -64,6 +129,22 @@ function Timeline2(props: Timeline2Props) {
           </TimelineNode>
         </div>
       </div>
+      <AddEventPopup
+        isOpen={showAddPopup}
+        onClose={() => setShowAddPopup(false)}
+        onSubmit={handleAddEvent}
+        isSubmitting={isSubmitting}
+      />
+      <EventDetailsPopup
+        isOpen={showDetailsPopup}
+        event={selectedEvent}
+        onClose={() => {
+          setShowDetailsPopup(false);
+          setSelectedEvent(null);
+        }}
+        onDelete={handleDeleteEvent}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }
