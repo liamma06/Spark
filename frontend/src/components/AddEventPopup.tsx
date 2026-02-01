@@ -4,7 +4,7 @@ import type { TimelineEventType } from "../types";
 interface AddEventPopupProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (type: TimelineEventType, title: string, details?: string) => Promise<void>;
+  onSubmit: (type: TimelineEventType, title: string, details?: string, date?: string) => Promise<void>;
   isSubmitting?: boolean;
 }
 
@@ -20,6 +20,11 @@ export function AddEventPopup({ isOpen, onClose, onSubmit, isSubmitting = false 
   const [eventType, setEventType] = useState<TimelineEventType>("symptom");
   const [title, setTitle] = useState("");
   const [details, setDetails] = useState("");
+  const [date, setDate] = useState(() => {
+    // Initialize with today's date in YYYY-MM-DD format
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
 
   if (!isOpen) return null;
 
@@ -29,16 +34,22 @@ export function AddEventPopup({ isOpen, onClose, onSubmit, isSubmitting = false 
       alert("Please enter a title for the event.");
       return;
     }
-    await onSubmit(eventType, title.trim(), details.trim() || undefined);
+    await onSubmit(eventType, title.trim(), details.trim() || undefined, date);
     // Reset form on success
     setTitle("");
     setDetails("");
+    // Reset date to today
+    const today = new Date();
+    setDate(today.toISOString().split('T')[0]);
   };
 
   const handleClose = () => {
     if (!isSubmitting) {
       setTitle("");
       setDetails("");
+      // Reset date to today
+      const today = new Date();
+      setDate(today.toISOString().split('T')[0]);
       onClose();
     }
   };
@@ -100,6 +111,18 @@ export function AddEventPopup({ isOpen, onClose, onSubmit, isSubmitting = false 
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
                 placeholder="Enter event details"
                 rows={3}
+                disabled={isSubmitting}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Date
+              </label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
                 disabled={isSubmitting}
               />
             </div>

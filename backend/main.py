@@ -338,6 +338,7 @@ class TimelineEventCreate(BaseModel):
     type: str
     title: str
     details: Optional[str] = None
+    created_at: Optional[str] = Field(None, alias="createdAt")
 
     class Config:
         populate_by_name = True
@@ -352,7 +353,7 @@ def get_timeline(patientId: Optional[str] = None):
 @app.post("/api/timeline")
 def create_timeline_event(body: TimelineEventCreate):
     """Create a new timeline event."""
-    return timeline_add_event(body.patient_id, body.type, body.title, body.details)
+    return timeline_add_event(body.patient_id, body.type, body.title, body.details, body.created_at)
 
 
 @app.delete("/api/timeline/{event_id}")

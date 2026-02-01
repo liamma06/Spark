@@ -58,11 +58,13 @@ def add_event(
     type: str,
     title: str,
     details: str | dict | None = None,
+    created_at: str | None = None,
 ) -> dict:
     """
     Insert a timeline event into public.timeline_events.
     type must be one of: symptom, appointment, medication, alert, chat.
     details can be a string (stored as {"text": details}) or a dict for jsonb.
+    created_at is optional ISO date string (YYYY-MM-DD). If not provided, uses database default.
     Returns the created row.
     """
     try:
@@ -73,6 +75,13 @@ def add_event(
         }
         if details is not None:
             payload["details"] = details if isinstance(details, dict) else {"text": str(details)}
+        if created_at is not None:
+            # Convert YYYY-MM-DD to ISO datetime string for PostgreSQL timestamptz
+            # Add time component (00:00:00) if not present
+            if len(created_at) == 10:  # YYYY-MM-DD format
+                payload["created_at"] = f"{created_at}T00:00:00"
+            else:
+                payload["created_at"] = created_at
         res = supabase.table("timeline_events").insert(payload).execute()
         if not res.data or len(res.data) == 0:
             raise HTTPException(status_code=500, detail="Failed to create timeline event")
