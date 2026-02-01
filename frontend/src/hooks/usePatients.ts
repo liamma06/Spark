@@ -82,18 +82,37 @@ export function useTimeline(patientId: string | null) {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchEvents = async () => {
     if (!patientId) {
       setEvents([]);
       setLoading(false);
       return;
     }
 
-    timelineApi.getByPatient(patientId)
-      .then(setEvents)
-      .catch(() => setEvents([]))
-      .finally(() => setLoading(false));
+    setLoading(true);
+    try {
+      const data = await timelineApi.getByPatient(patientId);
+      // Transform snake_case to camelCase
+      const transformed = data.map((event: any) => ({
+        id: event.id,
+        patientId: event.patient_id,
+        type: event.type,
+        title: event.title,
+        details: event.details?.text || event.details || undefined,
+        createdAt: new Date(event.created_at),
+      }));
+      setEvents(transformed);
+    } catch (error) {
+      console.error("Failed to fetch timeline events:", error);
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEvents();
   }, [patientId]);
 
-  return { events, loading };
+  return { events, loading, refetch: fetchEvents };
 }

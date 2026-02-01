@@ -38,6 +38,7 @@ from app.alerts import (
 from app.timeline import (
     get_timeline as timeline_get_timeline,
     add_event as timeline_add_event,
+    delete_event as timeline_delete_event,
 )
 
 # Load environment variables
@@ -331,10 +332,32 @@ def create_patient(body: CreatePatientBody):
 # --- Timeline (Supabase: app.timeline) ---
 
 
+class TimelineEventCreate(BaseModel):
+    patient_id: str = Field(..., alias="patientId")
+    type: str
+    title: str
+    details: Optional[str] = None
+
+    class Config:
+        populate_by_name = True
+
+
 @app.get("/api/timeline")
 def get_timeline(patientId: Optional[str] = None):
     """List timeline events from Supabase, optionally filtered by patient."""
     return timeline_get_timeline(patientId)
+
+
+@app.post("/api/timeline")
+def create_timeline_event(body: TimelineEventCreate):
+    """Create a new timeline event."""
+    return timeline_add_event(body.patient_id, body.type, body.title, body.details)
+
+
+@app.delete("/api/timeline/{event_id}")
+def delete_timeline_event(event_id: str):
+    """Delete a timeline event by id."""
+    return timeline_delete_event(event_id)
 
 
 # --- Alerts (Supabase: app.alerts) ---

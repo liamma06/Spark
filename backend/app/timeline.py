@@ -3,9 +3,20 @@ Timeline events (Supabase).
 Uses public.timeline_events: id, patient_id, type, title, details (jsonb), created_at.
 """
 
+import logging
+import re
 from fastapi import HTTPException
 
 from app.supabase import supabase
+
+logger = logging.getLogger(__name__)
+
+# UUID pattern validation
+UUID_PATTERN = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+
+def is_valid_uuid(uuid_string: str) -> bool:
+    """Check if a string is a valid UUID format."""
+    return bool(UUID_PATTERN.match(uuid_string))
 
 
 def get_timeline(patient_id: str | None = None) -> list:
@@ -14,16 +25,33 @@ def get_timeline(patient_id: str | None = None) -> list:
     If patient_id is set, filter by that patient; otherwise return all.
     Returns list of rows (snake_case keys). Empty list on error or no rows.
     """
+    # Validate patient_id is a valid UUID if provided
+    if patient_id and not is_valid_uuid(patient_id):
+        logger.warning(f"Invalid UUID format for patient_id: {patient_id}. Returning empty list.")
+        return []
+    
     try:
-        q = supabase.table("timeline_events").select("*").order("created_at", desc=True)
+        q = supabase.table("timeline_events").select("*")
         if patient_id:
             q = q.eq("patient_id", patient_id)
         res = q.execute()
-        return res.data or []
-    except HTTPException:
+        data = res.data or []
+        # Sort by created_at descending (newest first)
+        # Handle None or missing created_at gracefully
+        if data:
+            data.sort(key=lambda r: r.get("created_at") or "1970-01-01T00:00:00", reverse=True)
+        return data
+    except HTTPException as he:
+        # Re-raise HTTP exceptions (like 404, 403)
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        error_msg = str(e)
+        error_trace = traceback.format_exc()
+        logger.error(f"Error fetching timeline events for patient_id={patient_id}: {error_msg}\n{error_trace}")
+        # For now, return empty list instead of crashing - allows UI to load
+        # TODO: Check if table exists and provide better error message
+        return []
 
 
 def add_event(
@@ -50,6 +78,20 @@ def add_event(
         if not res.data or len(res.data) == 0:
             raise HTTPException(status_code=500, detail="Failed to create timeline event")
         return res.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def delete_event(event_id: str) -> dict:
+    """
+    Delete a timeline event from public.timeline_events by id.
+    Returns success message or raises HTTPException on error.
+    """
+    try:
+        res = supabase.table("timeline_events").delete().eq("id", event_id).execute()
+        return {"success": True, "message": "Timeline event deleted successfully"}
     except HTTPException:
         raise
     except Exception as e:

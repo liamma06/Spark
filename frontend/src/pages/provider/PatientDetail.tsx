@@ -10,7 +10,7 @@ import type { DecisionGraph as DecisionGraphType } from "../../types";
 export function PatientDetail() {
   const { id } = useParams<{ id: string }>();
   const { patient, loading: patientLoading } = usePatient(id || null);
-  const { events, loading: timelineLoading } = useTimeline(id || null);
+  const { events, loading: timelineLoading, refetch: refetchTimeline } = useTimeline(id || null);
   const { alerts, acknowledgeAlert } = useAlerts(id);
 
   // Mock decision graph based on patient risk level
@@ -162,7 +162,12 @@ export function PatientDetail() {
           <DecisionGraph graph={mockGraph} />
 
           {/* Timeline */}
-          <Timeline events={events} loading={timelineLoading} />
+          <Timeline 
+            events={events} 
+            loading={timelineLoading} 
+            patientId={id || undefined}
+            onEventsChange={refetchTimeline}
+          />
         </div>
 
         {/* Summary packet */}

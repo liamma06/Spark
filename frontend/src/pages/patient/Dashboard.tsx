@@ -10,7 +10,7 @@ import { signOut } from "../../lib/auth";
 export function PatientDashboard() {
   const navigate = useNavigate();
   const { currentPatientId } = useAppStore();
-  const { events, loading } = useTimeline(currentPatientId);
+  const { events, loading, refetch: refetchTimeline } = useTimeline(currentPatientId);
 
   const handleSignOut = () => {
     signOut()
@@ -115,7 +115,11 @@ export function PatientDashboard() {
         </div>
         <div>
           {/* Timeline */}
-          <Timeline2 events={dummyTimelineEvents}></Timeline2>
+          <Timeline2 
+            events={events.length > 0 ? events : dummyTimelineEvents}
+            patientId={currentPatientId || undefined}
+            onEventsChange={refetchTimeline}
+          />
         </div>
       </main>
     </div>

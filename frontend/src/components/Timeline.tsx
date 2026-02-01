@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { cn, formatDate, getEventIcon, getRiskColor } from "../lib/utils";
 import type { TimelineEvent, TimelineEventType } from "../types";
+import { timelineApi } from "../lib/api";
 
 interface TimelineProps {
   events: TimelineEvent[];
   loading?: boolean;
+  patientId?: string;
+  onEventsChange?: () => void;
 }
 
 const EVENT_TYPES: TimelineEventType[] = [
@@ -15,8 +18,61 @@ const EVENT_TYPES: TimelineEventType[] = [
   "chat",
 ];
 
-export function Timeline({ events, loading }: TimelineProps) {
+export function Timeline({ events, loading, patientId, onEventsChange }: TimelineProps) {
+  console.log("Timeline component rendered", { patientId, eventsCount: events.length });
   const [filter, setFilter] = useState<TimelineEventType | "all">("all");
+  const [showAddForm, setShowAddForm] = useState(false);
+  
+  // Test function to verify button works
+  const handleButtonClick = () => {
+    alert("Button clicked! Current state: " + showAddForm);
+    console.log("Button handler called");
+    setShowAddForm(!showAddForm);
+  };
+  const [newEventType, setNewEventType] = useState<TimelineEventType>("symptom");
+  const [newEventTitle, setNewEventTitle] = useState("");
+  const [newEventDetails, setNewEventDetails] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleDelete = async (eventId: string) => {
+    if (!confirm("Are you sure you want to delete this event?")) return;
+    
+    try {
+      await timelineApi.delete(eventId);
+      if (onEventsChange) {
+        onEventsChange();
+      }
+    } catch (error) {
+      console.error("Failed to delete event:", error);
+      alert("Failed to delete event. Please try again.");
+    }
+  };
+
+  const handleAddEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!patientId || !newEventTitle.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      await timelineApi.create(
+        patientId,
+        newEventType,
+        newEventTitle.trim(),
+        newEventDetails.trim() || undefined
+      );
+      setShowAddForm(false);
+      setNewEventTitle("");
+      setNewEventDetails("");
+      if (onEventsChange) {
+        onEventsChange();
+      }
+    } catch (error) {
+      console.error("Failed to create event:", error);
+      alert("Failed to create event. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const filteredEvents =
     filter === "all" ? events : events.filter((e) => e.type === filter);
@@ -42,9 +98,74 @@ export function Timeline({ events, loading }: TimelineProps) {
     <div className="bg-white rounded-xl ">
       {/* Header with filters */}
       <div className="px-6 py-4 border-b border-slate-200">
-        <h2 className="text-lg font-semibold text-slate-800 mb-3">
-          Health Timeline
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-slate-800">
+            Health Timeline
+          </h2>
+          <button
+            type="button"
+            onClick={handleButtonClick}
+            style={{ zIndex: 10, position: 'relative' }}
+            className="px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors cursor-pointer"
+          >
+            {showAddForm ? "Cancel" : "+ Add Event"}
+          </button>
+        </div>
+        {showAddForm && patientId && (
+          <form onSubmit={handleAddEvent} className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Type
+                </label>
+                <select
+                  value={newEventType}
+                  onChange={(e) => setNewEventType(e.target.value as TimelineEventType)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
+                  required
+                >
+                  {EVENT_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Title *
+                </label>
+                <input
+                  type="text"
+                  value={newEventTitle}
+                  onChange={(e) => setNewEventTitle(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
+                  placeholder="Enter event title"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Details (optional)
+                </label>
+                <textarea
+                  value={newEventDetails}
+                  onChange={(e) => setNewEventDetails(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
+                  placeholder="Enter event details"
+                  rows={3}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isSubmitting || !newEventTitle.trim()}
+                className="w-full px-4 py-2 bg-sky-500 text-white rounded-lg font-medium hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isSubmitting ? "Adding..." : "Add Event"}
+              </button>
+            </div>
+          </form>
+        )}
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setFilter("all")}
@@ -101,19 +222,44 @@ export function Timeline({ events, loading }: TimelineProps) {
                     )}
                   >
                     <div className="flex items-start justify-between gap-4">
-                      <div>
+                      <div className="flex-1">
                         <h3 className="font-medium text-slate-800">
                           {event.title}
                         </h3>
                         {event.details && (
                           <p className="text-sm text-slate-600 mt-1">
-                            {event.details}
+                            {typeof event.details === 'string' 
+                              ? event.details 
+                              : event.details.text || JSON.stringify(event.details)}
                           </p>
                         )}
                       </div>
-                      <span className="text-xs text-slate-400 whitespace-nowrap">
-                        {formatDate(event.createdAt)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400 whitespace-nowrap">
+                          {formatDate(event.createdAt)}
+                        </span>
+                        {patientId && (
+                          <button
+                            onClick={() => handleDelete(event.id)}
+                            className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                            title="Delete event"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
