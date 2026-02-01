@@ -1,16 +1,21 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { useAppStore } from "../../stores/appStore";
 import { useTimeline } from "../../hooks/usePatients";
-import { Timeline } from "../../components/Timeline";
 import { dummyTimelineEvents } from "../../types/dummyTimeline";
 import CircleArrow from "../../components/CircleArrow";
 import Timeline2 from "../../components/Timeline2";
+import { ProviderConnections } from "../../components/ProviderConnections";
+import { ProviderProfileModal } from "../../components/ProviderProfileModal";
 import { signOut, getCurrentUserId } from "../../lib/auth";
+import { useMyDoctors } from "../../lib/getMyDoctor";
+import type { Provider } from "../../types";
 
 export function PatientDashboard() {
   const navigate = useNavigate();
   const [userId, setUserId] = useState<string | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(
+    null,
+  );
 
   useEffect(() => {
     // Get the current user's ID (user_id from auth) - this is what we use for timeline events
@@ -21,10 +26,17 @@ export function PatientDashboard() {
   }, []);
 
   // Use userId for timeline (patient_id in DB is actually user_id)
-  const { events, loading, refetch: refetchTimeline } = useTimeline(userId);
+  const { events, refetch: refetchTimeline } = useTimeline(userId);
+
+  // Fetch user's doctors
+  const {
+    doctors,
+    loading: doctorsLoading,
+    error: doctorsError,
+  } = useMyDoctors();
 
   const handleSignOut = () => {
-    signOut()
+    signOut();
     navigate("/");
   };
 
@@ -75,59 +87,44 @@ export function PatientDashboard() {
         </div>
 
         {/* Quick actions */}
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <div className="grid grid-cols-1 gap-3">
-            <Link
-              to="/patient/chat"
-              className="p-6 bg-linear-to-b from-green-gradient-dark to-green-gradient-light text-white rounded-2xl "
-            >
-              <div className="grid grid-cols-2 justify-items-end">
-                <div className="flex flex-col w-full">
-                  <h3 className="text-lg font-medium">
-                    Chat With Care Compainion
-                  </h3>
-                  <p className="text-white/70 text-sm">
-                    Chat with your care compainion
-                  </p>
-                </div>
-                <CircleArrow colorFill></CircleArrow>
+        <div className="mb-3">
+          <Link
+            to="/patient/chat"
+            className="p-6 bg-linear-to-b from-green-gradient-dark to-green-gradient-light text-white rounded-2xl block"
+          >
+            <div className="grid grid-cols-2 justify-items-end">
+              <div className="flex flex-col w-full">
+                <h3 className="text-lg font-medium">
+                  Chat With Care Companion
+                </h3>
+                <p className="text-white/70 text-sm">
+                  Chat with your care companion
+                </p>
               </div>
-            </Link>
-            <Link
-              to="/patient/chat"
-              className="flex flex-col gap-1 p-6 bg-white rounded-2xl transition-colors"
-            >
-              <div className="grid grid-cols-2 justify-items-end">
-                <div>
-                  <h3 className="text-lg font-medium">Book Appointment</h3>
-                  <p className="text-secondary-text text-sm">
-                    Book an appointment with your primary care provider
-                  </p>
-                </div>
-                <CircleArrow></CircleArrow>
-              </div>
-            </Link>
-          </div>
-
-          <div className="p-6 bg-white rounded-2xl ">
-            <h3 className="text-lg font-medium text-slate-800 pb-1">
-              Next Appointment
-            </h3>
-            <p className="text-slate-500 text-sm">
-              Your next appointments will appear here...
-            </p>
-            <div className="pt-15  text-slate-500 text-sm w-full text-center">
-              No appointments booked...
+              <CircleArrow colorFill></CircleArrow>
             </div>
-            <div className=" mb-10 mt-1 text-sm w-full text-center text-primary cursor-pointer hover:underline">
-              Book appointments here
-            </div>
-          </div>
+          </Link>
         </div>
+        <div className="pb-3">
+          {/* Provider Connections */}
+          <ProviderConnections
+            providers={doctors}
+            error={doctorsError}
+            onProviderClick={setSelectedProvider}
+          />
+        </div>
+
+        {/* Provider Profile Modal */}
+        <ProviderProfileModal
+          isOpen={selectedProvider !== null}
+          provider={selectedProvider}
+          onClose={() => setSelectedProvider(null)}
+        />
+
         <div>
           {/* Timeline */}
           {userId ? (
-            <Timeline2 
+            <Timeline2
               events={events.length > 0 ? events : dummyTimelineEvents}
               patientId={userId}
               onEventsChange={refetchTimeline}
