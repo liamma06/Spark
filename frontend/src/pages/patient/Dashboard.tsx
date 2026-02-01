@@ -55,20 +55,6 @@ export function PatientDashboard() {
             </div>
             <div className="flex items-center gap-3">
               <button
-                className="pl-4 pr-6 py-3 rounded-full bg-white border flex items-center gap-2 cursor-pointer"
-                style={{ borderColor: "#3f7b56", color: "#3f7b56" }}
-                title="Add"
-              >
-                <svg
-                  className="w-4 h-4 text-slate-800"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                </svg>
-                <span className="text-sm font-medium">Add</span>
-              </button>
-              <button
                 onClick={handleSignOut}
                 className="pl-4 pr-6 py-3 rounded-full bg-gradient-to-b from-green-gradient-dark to-green-gradient-light flex items-center gap-2 cursor-pointer"
                 title="Sign out"

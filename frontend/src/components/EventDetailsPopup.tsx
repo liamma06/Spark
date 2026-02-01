@@ -122,10 +122,8 @@ export function EventDetailsPopup({ isOpen, event, onClose, onDelete, isDeleting
   if (!isOpen || !event) return null;
 
   const handleDelete = async () => {
-    if (window.confirm("Are you sure you want to delete this event?")) {
-      await onDelete(event.id);
-      onClose();
-    }
+    await onDelete(event.id);
+    onClose();
   };
 
   const formatDate = (date: Date) => {
